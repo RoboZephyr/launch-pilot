@@ -37,8 +37,8 @@ func TestExplainExitCode_KnownCodes(t *testing.T) {
 
 func TestExplainExitCode_Signals(t *testing.T) {
 	tests := []struct {
-		code        int
-		wantSignal  string
+		code       int
+		wantSignal string
 	}{
 		{-9, "SIGKILL"},
 		{-15, "SIGTERM"},

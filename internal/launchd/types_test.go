@@ -24,10 +24,10 @@ func TestJobStatus_Values(t *testing.T) {
 
 func TestJob_DeriveStatus(t *testing.T) {
 	tests := []struct {
-		name   string
-		pid    int
-		exit   int
-		want   JobStatus
+		name string
+		pid  int
+		exit int
+		want JobStatus
 	}{
 		{"running process", 584, 0, StatusRunning},
 		{"running with prior error", 1234, 78, StatusRunning},
