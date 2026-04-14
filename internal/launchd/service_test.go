@@ -2,11 +2,30 @@ package launchd
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/A404coder/launchboard/internal/plist"
 )
+
+// execCall records a single command invocation for test assertions.
+type execCall struct {
+	name string
+	args []string
+}
+
+func argsEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
 
 // newTestService creates a Service with injectable list output and plist scan results.
 func newTestService(listOutput string, listErr error, plists []plist.ScanResult) *Service {
@@ -339,5 +358,308 @@ func TestDetectDomain_GlobalPathNotConfusedWithUser(t *testing.T) {
 	}
 	if got := svc.detectDomain(globalPath); got != "global" {
 		t.Errorf("global path: got %q, want %q", got, "global")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// S05: validateLabel
+// ---------------------------------------------------------------------------
+
+func TestValidateLabel(t *testing.T) {
+	tests := []struct {
+		label string
+		valid bool
+	}{
+		// Valid labels
+		{"com.apple.Finder", true},
+		{"com.example.my-app_v2", true},
+		{"com.example.myapp", true},
+		{"myapp", true},
+		{"a", true},
+		{"A.B.C-d_e.123", true},
+
+		// Invalid labels — injection attempts
+		{"", false},
+		{"com.example;rm -rf /", false},
+		{"com.example.$(evil)", false},
+		{"com.example evil", false},
+		{"com.example/../etc/passwd", false},
+		{"com.example.`evil`", false},
+		{"com.example|evil", false},
+		{"com.example&evil", false},
+		{"com.example\nevil", false},
+		{"com.example\tevil", false},
+		{"label with spaces", false},
+	}
+
+	for _, tt := range tests {
+		name := tt.label
+		if name == "" {
+			name = "(empty)"
+		}
+		t.Run(name, func(t *testing.T) {
+			err := validateLabel(tt.label)
+			if tt.valid && err != nil {
+				t.Errorf("validateLabel(%q) unexpected error: %v", tt.label, err)
+			}
+			if !tt.valid && err == nil {
+				t.Errorf("validateLabel(%q) expected error, got nil", tt.label)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// S05: Reload
+// ---------------------------------------------------------------------------
+
+// newTestServiceWithExec extends newTestService with a runExec capture.
+func newTestServiceWithExec(listOutput string, plists []plist.ScanResult, calls *[]execCall, execErr func(int) error) *Service {
+	svc := newTestService(listOutput, nil, plists)
+	callIdx := 0
+	svc.runExec = func(name string, args ...string) (*ExecResult, error) {
+		*calls = append(*calls, execCall{name, args})
+		idx := callIdx
+		callIdx++
+		if execErr != nil {
+			if err := execErr(idx); err != nil {
+				return &ExecResult{}, err
+			}
+		}
+		return &ExecResult{}, nil
+	}
+	return svc
+}
+
+func TestReload_Success(t *testing.T) {
+	listOutput := "PID\tStatus\tLabel\n584\t0\tcom.example.myapp\n"
+	plists := []plist.ScanResult{
+		{
+			Path: "/Users/testuser/Library/LaunchAgents/com.example.myapp.plist",
+			Data: plist.PlistData{Label: "com.example.myapp"},
+		},
+	}
+
+	var calls []execCall
+	svc := newTestServiceWithExec(listOutput, plists, &calls, nil)
+
+	err := svc.Reload("com.example.myapp")
+	if err != nil {
+		t.Fatalf("Reload() error: %v", err)
+	}
+
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 exec calls, got %d", len(calls))
+	}
+
+	// Call 1: bootout
+	if calls[0].name != "launchctl" {
+		t.Errorf("call 0 name: got %q", calls[0].name)
+	}
+	wantBootout := []string{"bootout", "gui/501/com.example.myapp"}
+	if !argsEqual(calls[0].args, wantBootout) {
+		t.Errorf("bootout args: got %v, want %v", calls[0].args, wantBootout)
+	}
+
+	// Call 2: bootstrap
+	if calls[1].name != "launchctl" {
+		t.Errorf("call 1 name: got %q", calls[1].name)
+	}
+	wantBootstrap := []string{"bootstrap", "gui/501", "/Users/testuser/Library/LaunchAgents/com.example.myapp.plist"}
+	if !argsEqual(calls[1].args, wantBootstrap) {
+		t.Errorf("bootstrap args: got %v, want %v", calls[1].args, wantBootstrap)
+	}
+}
+
+func TestReload_IgnoresBootoutError(t *testing.T) {
+	listOutput := "PID\tStatus\tLabel\n584\t0\tcom.example.myapp\n"
+	plists := []plist.ScanResult{
+		{
+			Path: "/Users/testuser/Library/LaunchAgents/com.example.myapp.plist",
+			Data: plist.PlistData{Label: "com.example.myapp"},
+		},
+	}
+
+	var calls []execCall
+	svc := newTestServiceWithExec(listOutput, plists, &calls, func(idx int) error {
+		if idx == 0 {
+			return errors.New("not loaded")
+		}
+		return nil
+	})
+
+	err := svc.Reload("com.example.myapp")
+	if err != nil {
+		t.Fatalf("Reload() should succeed when bootout fails: %v", err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 exec calls, got %d", len(calls))
+	}
+}
+
+func TestReload_BootstrapFails(t *testing.T) {
+	listOutput := "PID\tStatus\tLabel\n584\t0\tcom.example.myapp\n"
+	plists := []plist.ScanResult{
+		{
+			Path: "/Users/testuser/Library/LaunchAgents/com.example.myapp.plist",
+			Data: plist.PlistData{Label: "com.example.myapp"},
+		},
+	}
+
+	var calls []execCall
+	svc := newTestServiceWithExec(listOutput, plists, &calls, func(idx int) error {
+		if idx == 1 {
+			return errors.New("bootstrap failed: path not found")
+		}
+		return nil
+	})
+
+	err := svc.Reload("com.example.myapp")
+	if err == nil {
+		t.Fatal("Reload() should fail when bootstrap fails")
+	}
+}
+
+func TestReload_JobNotFound(t *testing.T) {
+	listOutput := "PID\tStatus\tLabel\n584\t0\tcom.example.other\n"
+	var calls []execCall
+	svc := newTestServiceWithExec(listOutput, nil, &calls, nil)
+
+	err := svc.Reload("com.example.nonexistent")
+	if err == nil {
+		t.Fatal("Reload() should fail when job not found")
+	}
+	if len(calls) != 0 {
+		t.Errorf("should not exec any commands, got %d calls", len(calls))
+	}
+}
+
+func TestReload_NoPlistPath(t *testing.T) {
+	// Job exists in launchctl list but has no matching plist file.
+	listOutput := "PID\tStatus\tLabel\n584\t0\tcom.example.noplist\n"
+	var calls []execCall
+	svc := newTestServiceWithExec(listOutput, nil, &calls, nil)
+
+	err := svc.Reload("com.example.noplist")
+	if err == nil {
+		t.Fatal("Reload() should fail when plist path is empty")
+	}
+	if len(calls) != 0 {
+		t.Errorf("should not exec any commands, got %d calls", len(calls))
+	}
+}
+
+func TestReload_InvalidLabel(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, nil)
+
+	err := svc.Reload("invalid;label")
+	if err == nil {
+		t.Fatal("Reload() should reject invalid label")
+	}
+	if len(calls) != 0 {
+		t.Errorf("should not exec any commands for invalid label, got %d calls", len(calls))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// S05: Start
+// ---------------------------------------------------------------------------
+
+func TestStart_Success(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, nil)
+
+	err := svc.Start("com.example.myapp")
+	if err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(calls))
+	}
+
+	if calls[0].name != "launchctl" {
+		t.Errorf("command: got %q", calls[0].name)
+	}
+	want := []string{"kickstart", "gui/501/com.example.myapp"}
+	if !argsEqual(calls[0].args, want) {
+		t.Errorf("args: got %v, want %v", calls[0].args, want)
+	}
+}
+
+func TestStart_InvalidLabel(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, nil)
+
+	err := svc.Start("$(evil)")
+	if err == nil {
+		t.Fatal("Start() should reject invalid label")
+	}
+	if len(calls) != 0 {
+		t.Errorf("should not exec any commands, got %d calls", len(calls))
+	}
+}
+
+func TestStart_ExecFails(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, func(_ int) error {
+		return fmt.Errorf("kickstart failed")
+	})
+
+	err := svc.Start("com.example.myapp")
+	if err == nil {
+		t.Fatal("Start() should propagate exec error")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// S05: Stop
+// ---------------------------------------------------------------------------
+
+func TestStop_Success(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, nil)
+
+	err := svc.Stop("com.example.myapp")
+	if err != nil {
+		t.Fatalf("Stop() error: %v", err)
+	}
+
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(calls))
+	}
+
+	if calls[0].name != "launchctl" {
+		t.Errorf("command: got %q", calls[0].name)
+	}
+	want := []string{"kill", "SIGTERM", "gui/501/com.example.myapp"}
+	if !argsEqual(calls[0].args, want) {
+		t.Errorf("args: got %v, want %v", calls[0].args, want)
+	}
+}
+
+func TestStop_InvalidLabel(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, nil)
+
+	err := svc.Stop("label with spaces")
+	if err == nil {
+		t.Fatal("Stop() should reject invalid label")
+	}
+	if len(calls) != 0 {
+		t.Errorf("should not exec any commands, got %d calls", len(calls))
+	}
+}
+
+func TestStop_ExecFails(t *testing.T) {
+	var calls []execCall
+	svc := newTestServiceWithExec("", nil, &calls, func(_ int) error {
+		return fmt.Errorf("kill failed")
+	})
+
+	err := svc.Stop("com.example.myapp")
+	if err == nil {
+		t.Fatal("Stop() should propagate exec error")
 	}
 }

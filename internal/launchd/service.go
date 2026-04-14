@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/A404coder/launchboard/internal/plist"
 )
+
+// labelRe validates launchd job labels: alphanumeric, dots, hyphens, underscores.
+var labelRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // Service provides high-level operations on launchd user-domain jobs.
 // It merges data from launchctl list (Layer 1) with plist files (Layer 2).
@@ -19,6 +23,7 @@ type Service struct {
 	// Overridable for testing.
 	runList   func() (string, error)
 	scanPlist func() []plist.ScanResult
+	runExec   func(name string, args ...string) (*ExecResult, error)
 }
 
 // NewService creates a Service configured for the current user.
@@ -32,6 +37,9 @@ func NewService() *Service {
 	}
 	s.runList = s.defaultRunList
 	s.scanPlist = s.defaultScanPlist
+	s.runExec = func(name string, args ...string) (*ExecResult, error) {
+		return runCmd(name, args...)
+	}
 	return s
 }
 
@@ -111,6 +119,63 @@ func (s *Service) GetJob(label string) (*Job, error) {
 	}
 
 	return nil, fmt.Errorf("job not found: %s", label)
+}
+
+// validateLabel checks that a label contains only safe characters for launchctl args.
+func validateLabel(label string) error {
+	if !labelRe.MatchString(label) {
+		return fmt.Errorf("invalid label: %q", label)
+	}
+	return nil
+}
+
+// Reload unloads and reloads a job (bootout then bootstrap).
+func (s *Service) Reload(label string) error {
+	if err := validateLabel(label); err != nil {
+		return err
+	}
+
+	job, err := s.GetJob(label)
+	if err != nil {
+		return fmt.Errorf("reload %s: %w", label, err)
+	}
+	if job.PlistPath == "" {
+		return fmt.Errorf("reload %s: no plist path available", label)
+	}
+
+	// Step 1: bootout — ignore error (job may not be loaded).
+	s.runExec("launchctl", "bootout", s.domain+"/"+label)
+
+	// Step 2: bootstrap.
+	_, err = s.runExec("launchctl", "bootstrap", s.domain, job.PlistPath)
+	if err != nil {
+		return fmt.Errorf("reload %s: %w", label, err)
+	}
+	return nil
+}
+
+// Start kickstarts a job.
+func (s *Service) Start(label string) error {
+	if err := validateLabel(label); err != nil {
+		return err
+	}
+	_, err := s.runExec("launchctl", "kickstart", s.domain+"/"+label)
+	if err != nil {
+		return fmt.Errorf("start %s: %w", label, err)
+	}
+	return nil
+}
+
+// Stop sends SIGTERM to a running job.
+func (s *Service) Stop(label string) error {
+	if err := validateLabel(label); err != nil {
+		return err
+	}
+	_, err := s.runExec("launchctl", "kill", "SIGTERM", s.domain+"/"+label)
+	if err != nil {
+		return fmt.Errorf("stop %s: %w", label, err)
+	}
+	return nil
 }
 
 // detectDomain determines whether a plist path belongs to the user or global domain.
