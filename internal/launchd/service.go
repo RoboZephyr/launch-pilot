@@ -10,6 +10,68 @@ import (
 	"github.com/A404coder/launchboard/internal/plist"
 )
 
+// tailFile reads the last n lines from a file. Returns an error if the file
+// cannot be read. Returns an empty string for empty files.
+func tailFile(path string, n int) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	content := strings.TrimRight(string(data), "\n")
+	if content == "" {
+		return "", nil
+	}
+
+	lines := strings.Split(content, "\n")
+	if n >= len(lines) {
+		return content, nil
+	}
+	return strings.Join(lines[len(lines)-n:], "\n"), nil
+}
+
+// ReadLogs reads the stdout and stderr log files for a job, returning the last
+// n lines of each. Returns a message when no log paths are configured in the
+// plist. Returns null stdout/stderr when log files don't exist on disk.
+func (s *Service) ReadLogs(label string, lines int) (*LogOutput, error) {
+	job, err := s.GetJob(label)
+	if err != nil {
+		return nil, err
+	}
+
+	out := &LogOutput{
+		Label:      job.Label,
+		StdoutPath: job.StandardOutPath,
+		StderrPath: job.StandardErrPath,
+	}
+
+	// No log paths configured at all.
+	if job.StandardOutPath == "" && job.StandardErrPath == "" {
+		out.Message = "No log paths configured in plist"
+		return out, nil
+	}
+
+	// Read stdout if configured.
+	if job.StandardOutPath != "" {
+		content, err := tailFile(job.StandardOutPath, lines)
+		if err == nil {
+			out.Stdout = &content
+			out.StdoutAvailable = true
+		}
+	}
+
+	// Read stderr if configured.
+	if job.StandardErrPath != "" {
+		content, err := tailFile(job.StandardErrPath, lines)
+		if err == nil {
+			out.Stderr = &content
+			out.StderrAvailable = true
+		}
+	}
+
+	return out, nil
+}
+
 // labelRe validates launchd job labels: alphanumeric, dots, hyphens, underscores.
 var labelRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
