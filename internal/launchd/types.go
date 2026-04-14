@@ -1,5 +1,33 @@
 package launchd
 
+import (
+	"errors"
+	"fmt"
+	"regexp"
+)
+
+// Sentinel errors returned by Service methods.
+var (
+	ErrNotFound     = errors.New("job not found")
+	ErrInvalidLabel = errors.New("invalid label")
+)
+
+// LabelRe validates launchd job labels: alphanumeric, dots, hyphens, underscores.
+var LabelRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// ValidLabel reports whether label contains only safe characters for launchctl args.
+func ValidLabel(label string) bool {
+	return LabelRe.MatchString(label)
+}
+
+// ValidateLabel checks that a label contains only safe characters for launchctl args.
+func ValidateLabel(label string) error {
+	if !ValidLabel(label) {
+		return fmt.Errorf("%w: %q", ErrInvalidLabel, label)
+	}
+	return nil
+}
+
 // JobStatus represents the runtime state of a launchd job.
 type JobStatus string
 

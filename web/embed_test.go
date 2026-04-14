@@ -62,6 +62,42 @@ func TestFS_AppJS(t *testing.T) {
 	f.Close()
 }
 
+func TestFS_Components(t *testing.T) {
+	files := []string{
+		"components/search-bar.js",
+		"components/job-table.js",
+		"components/job-row.js",
+		"components/confirm-dialog.js",
+		"components/toast.js",
+		"components/log-viewer.js",
+		"components/diagnose-panel.js",
+	}
+	for _, name := range files {
+		f, err := FS.Open(name)
+		if err != nil {
+			t.Errorf("FS.Open(%q) failed: %v", name, err)
+			continue
+		}
+		f.Close()
+	}
+}
+
+func TestFS_Lib(t *testing.T) {
+	files := []string{
+		"lib/state.js",
+		"lib/sse.js",
+		"lib/api.js",
+	}
+	for _, name := range files {
+		f, err := FS.Open(name)
+		if err != nil {
+			t.Errorf("FS.Open(%q) failed: %v", name, err)
+			continue
+		}
+		f.Close()
+	}
+}
+
 func TestIndexHTML_ImportMap_NoExternalCDN(t *testing.T) {
 	data, err := fs.ReadFile(FS, "index.html")
 	if err != nil {

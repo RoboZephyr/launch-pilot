@@ -55,9 +55,10 @@ func ScanDirs() []string {
 	return dirs
 }
 
-// ScanAll reads all .plist files from the given directories.
+// ScanAll reads all .plist files from the given directories, using the provided
+// cache for mtime-based caching. If cache is nil, files are parsed directly.
 // Non-existent directories and unparseable files are silently skipped.
-func ScanAll(dirs []string) []ScanResult {
+func ScanAll(dirs []string, cache *Cache) []ScanResult {
 	var results []ScanResult
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
@@ -69,7 +70,13 @@ func ScanAll(dirs []string) []ScanResult {
 				continue
 			}
 			path := filepath.Join(dir, entry.Name())
-			data, err := ReadPlist(path)
+
+			var data *PlistData
+			if cache != nil {
+				data, err = cache.Get(path)
+			} else {
+				data, err = ReadPlist(path)
+			}
 			if err != nil {
 				continue // skip unparseable files
 			}

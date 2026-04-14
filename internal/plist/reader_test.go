@@ -182,7 +182,7 @@ func TestScanAll(t *testing.T) {
 		// Non-plist file should be ignored
 		os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("ignore me"), 0644)
 
-		results := ScanAll([]string{dir})
+		results := ScanAll([]string{dir}, nil)
 		if len(results) != 2 {
 			t.Fatalf("ScanAll returned %d results, want 2", len(results))
 		}
@@ -203,7 +203,7 @@ func TestScanAll(t *testing.T) {
 	})
 
 	t.Run("skips non-existent directories", func(t *testing.T) {
-		results := ScanAll([]string{"/nonexistent/path/12345"})
+		results := ScanAll([]string{"/nonexistent/path/12345"}, nil)
 		if len(results) != 0 {
 			t.Fatalf("ScanAll returned %d results for non-existent dir, want 0", len(results))
 		}
@@ -214,7 +214,7 @@ func TestScanAll(t *testing.T) {
 		writeTempPlist(t, dir, "good.plist", samplePlistXML)
 		writeTempPlist(t, dir, "bad.plist", "not a plist at all")
 
-		results := ScanAll([]string{dir})
+		results := ScanAll([]string{dir}, nil)
 		if len(results) != 1 {
 			t.Fatalf("ScanAll returned %d results, want 1 (bad file should be skipped)", len(results))
 		}
@@ -229,7 +229,7 @@ func TestScanAll(t *testing.T) {
 		writeTempPlist(t, dir1, "one.plist", samplePlistXML)
 		writeTempPlist(t, dir2, "two.plist", minimalPlistXML)
 
-		results := ScanAll([]string{dir1, dir2})
+		results := ScanAll([]string{dir1, dir2}, nil)
 		if len(results) != 2 {
 			t.Fatalf("ScanAll returned %d results, want 2", len(results))
 		}

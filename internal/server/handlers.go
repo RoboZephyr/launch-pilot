@@ -2,13 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/A404coder/launchboard/internal/diagnose"
+	"github.com/A404coder/launchboard/internal/launchd"
 )
 
 // writeJSON marshals v as JSON and writes it with the given status code.
@@ -23,12 +23,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
 
-// labelRe validates launchd job labels: alphanumeric, dots, hyphens, underscores.
-var labelRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-
-func validLabel(label string) bool {
-	return labelRe.MatchString(label)
-}
+const maxLogLines = 10000
 
 func listJobsHandler(svc JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -48,9 +43,13 @@ func listJobsHandler(svc JobService) http.HandlerFunc {
 func getJobHandler(svc JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		label := r.PathValue("label")
+		if !launchd.ValidLabel(label) {
+			writeError(w, http.StatusBadRequest, "invalid label format")
+			return
+		}
 		job, err := svc.GetJob(label)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.Is(err, launchd.ErrNotFound) {
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}
@@ -64,7 +63,7 @@ func getJobHandler(svc JobService) http.HandlerFunc {
 func actionHandler(svc JobService, action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		label := r.PathValue("label")
-		if !validLabel(label) {
+		if !launchd.ValidLabel(label) {
 			writeError(w, http.StatusBadRequest, "invalid label format")
 			return
 		}
@@ -80,7 +79,11 @@ func actionHandler(svc JobService, action string) http.HandlerFunc {
 		}
 
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{
+			status := http.StatusInternalServerError
+			if errors.Is(err, launchd.ErrNotFound) || errors.Is(err, launchd.ErrInvalidLabel) {
+				status = http.StatusBadRequest
+			}
+			writeJSON(w, status, map[string]any{
 				"ok":     false,
 				"label":  label,
 				"action": action,
@@ -99,7 +102,7 @@ func actionHandler(svc JobService, action string) http.HandlerFunc {
 func getLogsHandler(svc JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		label := r.PathValue("label")
-		if !validLabel(label) {
+		if !launchd.ValidLabel(label) {
 			writeError(w, http.StatusBadRequest, "invalid label format")
 			return
 		}
@@ -111,12 +114,15 @@ func getLogsHandler(svc JobService) http.HandlerFunc {
 				writeError(w, http.StatusBadRequest, "invalid lines parameter")
 				return
 			}
+			if n > maxLogLines {
+				n = maxLogLines
+			}
 			lines = n
 		}
 
 		logs, err := svc.ReadLogs(label, lines)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.Is(err, launchd.ErrNotFound) {
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}
@@ -130,14 +136,14 @@ func getLogsHandler(svc JobService) http.HandlerFunc {
 func diagnoseHandler(svc JobService, diag *diagnose.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		label := r.PathValue("label")
-		if !validLabel(label) {
+		if !launchd.ValidLabel(label) {
 			writeError(w, http.StatusBadRequest, "invalid label format")
 			return
 		}
 
 		job, err := svc.GetJob(label)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.Is(err, launchd.ErrNotFound) {
 				writeError(w, http.StatusNotFound, err.Error())
 				return
 			}

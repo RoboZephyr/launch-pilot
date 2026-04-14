@@ -42,7 +42,7 @@ func (m *mockJobService) GetJob(label string) (*launchd.Job, error) {
 			return &m.jobs[i], nil
 		}
 	}
-	return nil, fmt.Errorf("job not found: %s", label)
+	return nil, fmt.Errorf("%w: %s", launchd.ErrNotFound, label)
 }
 
 func (m *mockJobService) Reload(string) error { return m.reloadErr }
@@ -518,7 +518,7 @@ func TestGetLogs_InvalidLinesParam_Returns400(t *testing.T) {
 
 func TestGetLogs_NotFound_Returns404(t *testing.T) {
 	mock := &mockJobService{
-		logsErr: fmt.Errorf("job not found: com.example.missing"),
+		logsErr: fmt.Errorf("%w: com.example.missing", launchd.ErrNotFound),
 	}
 	router := testRouter(mock)
 

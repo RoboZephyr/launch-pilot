@@ -1,33 +1,48 @@
 package launchd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/A404coder/launchboard/internal/plist"
 )
 
-// tailFile reads the last n lines from a file. Returns an error if the file
-// cannot be read. Returns an empty string for empty files.
+// tailFile reads the last n lines from a file using a circular buffer,
+// avoiding loading the entire file into memory for large log files.
 func tailFile(path string, n int) (string, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 
-	content := strings.TrimRight(string(data), "\n")
-	if content == "" {
+	ring := make([]string, n)
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	idx := 0
+	count := 0
+	for scanner.Scan() {
+		ring[idx] = scanner.Text()
+		idx = (idx + 1) % n
+		count++
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	if count == 0 {
 		return "", nil
 	}
-
-	lines := strings.Split(content, "\n")
-	if n >= len(lines) {
-		return content, nil
+	if count <= n {
+		return strings.Join(ring[:count], "\n"), nil
 	}
-	return strings.Join(lines[len(lines)-n:], "\n"), nil
+	result := make([]string, 0, n)
+	result = append(result, ring[idx:]...)
+	result = append(result, ring[:idx]...)
+	return strings.Join(result, "\n"), nil
 }
 
 // ReadLogs reads the stdout and stderr log files for a job, returning the last
@@ -72,15 +87,13 @@ func (s *Service) ReadLogs(label string, lines int) (*LogOutput, error) {
 	return out, nil
 }
 
-// labelRe validates launchd job labels: alphanumeric, dots, hyphens, underscores.
-var labelRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-
 // Service provides high-level operations on launchd user-domain jobs.
 // It merges data from launchctl list (Layer 1) with plist files (Layer 2).
 type Service struct {
 	uid     int
 	domain  string // "gui/<UID>"
 	homeDir string
+	cache   *plist.Cache
 
 	// Overridable for testing.
 	runList   func() (string, error)
@@ -96,6 +109,7 @@ func NewService() *Service {
 		uid:     uid,
 		domain:  fmt.Sprintf("gui/%d", uid),
 		homeDir: home,
+		cache:   plist.NewCache(),
 	}
 	s.runList = s.defaultRunList
 	s.scanPlist = s.defaultScanPlist
@@ -114,7 +128,7 @@ func (s *Service) defaultRunList() (string, error) {
 }
 
 func (s *Service) defaultScanPlist() []plist.ScanResult {
-	return plist.ScanAll(plist.ScanDirs())
+	return plist.ScanAll(plist.ScanDirs(), s.cache)
 }
 
 // ListJobs returns all launchd jobs visible to the current user, with plist
@@ -167,7 +181,8 @@ func (s *Service) ListJobs() ([]Job, error) {
 	return jobs, nil
 }
 
-// GetJob returns a single job by label. Returns an error if the label is not found.
+// GetJob returns a single job by label. Returns an error wrapping ErrNotFound
+// if the label is not present in the current job list.
 func (s *Service) GetJob(label string) (*Job, error) {
 	jobs, err := s.ListJobs()
 	if err != nil {
@@ -180,20 +195,12 @@ func (s *Service) GetJob(label string) (*Job, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("job not found: %s", label)
-}
-
-// validateLabel checks that a label contains only safe characters for launchctl args.
-func validateLabel(label string) error {
-	if !labelRe.MatchString(label) {
-		return fmt.Errorf("invalid label: %q", label)
-	}
-	return nil
+	return nil, fmt.Errorf("%w: %s", ErrNotFound, label)
 }
 
 // Reload unloads and reloads a job (bootout then bootstrap).
 func (s *Service) Reload(label string) error {
-	if err := validateLabel(label); err != nil {
+	if err := ValidateLabel(label); err != nil {
 		return err
 	}
 
@@ -218,7 +225,7 @@ func (s *Service) Reload(label string) error {
 
 // Start kickstarts a job.
 func (s *Service) Start(label string) error {
-	if err := validateLabel(label); err != nil {
+	if err := ValidateLabel(label); err != nil {
 		return err
 	}
 	_, err := s.runExec("launchctl", "kickstart", s.domain+"/"+label)
@@ -230,7 +237,7 @@ func (s *Service) Start(label string) error {
 
 // Stop sends SIGTERM to a running job.
 func (s *Service) Stop(label string) error {
-	if err := validateLabel(label); err != nil {
+	if err := ValidateLabel(label); err != nil {
 		return err
 	}
 	_, err := s.runExec("launchctl", "kill", "SIGTERM", s.domain+"/"+label)

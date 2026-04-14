@@ -398,12 +398,12 @@ func TestValidateLabel(t *testing.T) {
 			name = "(empty)"
 		}
 		t.Run(name, func(t *testing.T) {
-			err := validateLabel(tt.label)
+			err := ValidateLabel(tt.label)
 			if tt.valid && err != nil {
-				t.Errorf("validateLabel(%q) unexpected error: %v", tt.label, err)
+				t.Errorf("ValidateLabel(%q) unexpected error: %v", tt.label, err)
 			}
 			if !tt.valid && err == nil {
-				t.Errorf("validateLabel(%q) expected error, got nil", tt.label)
+				t.Errorf("ValidateLabel(%q) expected error, got nil", tt.label)
 			}
 		})
 	}
