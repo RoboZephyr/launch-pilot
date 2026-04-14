@@ -150,9 +150,7 @@ func diagnoseHandler(svc JobService, diag *diagnose.Engine) http.HandlerFunc {
 	}
 }
 
-// sseHandler — stub; will be implemented in a later story.
+// sseHandler returns an SSE handler using the default 5-second push interval.
 func sseHandler(svc JobService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented")
-	}
+	return sseHandlerWithInterval(svc, defaultSSEInterval)
 }
