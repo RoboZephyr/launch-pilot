@@ -2,6 +2,7 @@ import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
 import { expandedJob, activePanel, addToast } from '../lib/state.js';
 import { postAction } from '../lib/api.js';
+import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
 import { ConfirmDialog } from './confirm-dialog.js';
 import { LogViewer } from './log-viewer.js';
 import { DiagnosePanel } from './diagnose-panel.js';
@@ -40,7 +41,7 @@ export function JobRow({ job }) {
   return html`
     <tr class="job-row">
       <td class="job-row__status"><span class=${dotClass} title=${job.status}></span></td>
-      <td class="job-row__label"><code>${job.label}</code></td>
+      <td class="job-row__label"><code>${job.label}</code><span class=${'category-badge category-badge--' + classifyJob(job)}>${CATEGORY_LABELS[classifyJob(job)]}</span></td>
       <td class="job-row__pid">${job.pid > 0 ? job.pid : '\u2014'}</td>
       <td class="job-row__exit">${job.lastExitStatus}</td>
       <td class="job-row__actions">
