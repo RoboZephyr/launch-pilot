@@ -13,8 +13,8 @@ function App() {
 
   return html`
     <header>
-      <h1>Launchboard</h1>
-      <p>macOS LaunchAgent dashboard</p>
+      <h1>Launch Pilot</h1>
+      <p>macOS LaunchAgent control console</p>
     </header>
     <main>
       <${SearchBar} />

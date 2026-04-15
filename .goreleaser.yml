@@ -1,14 +1,14 @@
 version: 2
 
-project_name: launchboard
+project_name: launch-pilot
 
 before:
   hooks:
     - go test ./...
 
 builds:
-  - main: ./cmd/launchboard
-    binary: launchboard
+  - main: ./cmd/launch-pilot
+    binary: launch-pilot
     goos:
       - darwin
     goarch:
@@ -36,8 +36,8 @@ brews:
   - repository:
       owner: A404coder
       name: homebrew-tap
-    homepage: "https://github.com/A404coder/launchboard"
-    description: "Visual dashboard for macOS launchd services"
+    homepage: "https://github.com/A404coder/launch-pilot"
+    description: "Visual control console for macOS launchd services"
     license: MIT
     install: |
-      bin.install "launchboard"
+      bin.install "launch-pilot"

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/A404coder/launchboard/internal/diagnose"
-	"github.com/A404coder/launchboard/internal/launchd"
+	"github.com/A404coder/launch-pilot/internal/diagnose"
+	"github.com/A404coder/launch-pilot/internal/launchd"
 )
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 package diagnose
 
-import "github.com/A404coder/launchboard/internal/launchd"
+import "github.com/A404coder/launch-pilot/internal/launchd"
 
 // Engine runs read-only diagnostic checks against launchd jobs.
 type Engine struct{}

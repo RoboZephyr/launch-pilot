@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/A404coder/launchboard/internal/plist"
+	"github.com/A404coder/launch-pilot/internal/plist"
 )
 
 // tailFile reads the last n lines from a file using a circular buffer,

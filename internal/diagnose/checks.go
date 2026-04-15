@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/A404coder/launchboard/internal/launchd"
+	"github.com/A404coder/launch-pilot/internal/launchd"
 )
 
 // checkExitCode maps the job's last exit status to a human-readable explanation.

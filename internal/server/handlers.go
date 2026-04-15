@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/A404coder/launchboard/internal/diagnose"
-	"github.com/A404coder/launchboard/internal/launchd"
+	"github.com/A404coder/launch-pilot/internal/diagnose"
+	"github.com/A404coder/launch-pilot/internal/launchd"
 )
 
 // writeJSON marshals v as JSON and writes it with the given status code.

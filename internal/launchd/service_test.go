@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/A404coder/launchboard/internal/plist"
+	"github.com/A404coder/launch-pilot/internal/plist"
 )
 
 // execCall records a single command invocation for test assertions.

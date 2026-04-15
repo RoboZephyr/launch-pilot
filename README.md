@@ -1,11 +1,11 @@
-# Launchboard
+# Launch Pilot
 
-Visual dashboard for macOS launchd services. View status, read logs, diagnose issues, and manage user-domain launch agents from your browser.
+Visual control console for macOS launchd services. View status, read logs, diagnose issues, and manage user-domain launch agents from your browser.
 
 ## Install
 
 ```bash
-brew install A404coder/tap/launchboard
+brew install A404coder/tap/launch-pilot
 ```
 
 Or build from source:
@@ -17,10 +17,10 @@ make build
 ## Usage
 
 ```bash
-launchboard              # random port, opens browser
-launchboard --port 8080  # explicit port
-launchboard --no-open    # skip auto-opening browser
-launchboard --version    # print version
+launch-pilot              # random port, opens browser
+launch-pilot --port 8080  # explicit port
+launch-pilot --no-open    # skip auto-opening browser
+launch-pilot --version    # print version
 ```
 
 ## License

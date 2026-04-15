@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/A404coder/launchboard/internal/launchd"
+	"github.com/A404coder/launch-pilot/internal/launchd"
 )
 
 // --- checkExitCode ---
