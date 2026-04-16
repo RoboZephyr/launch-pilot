@@ -1,8 +1,6 @@
 import { describe, it, beforeEach } from 'node:test';
 import { strict as assert } from 'node:assert';
 import {
-  jobs,
-  searchQuery,
   filteredJobs,
   categoryFilter,
   statusFilter,
@@ -10,29 +8,8 @@ import {
   categoryCounts,
   statusCounts,
 } from './state.js';
-
-// --- Test fixtures ---
-
-const FIXTURES = [
-  { label: 'com.apple.spotlight',       domain: 'user',   status: 'running' },
-  { label: 'com.apple.WindowServer',    domain: 'global', status: 'running' },
-  { label: 'com.example.myapp',         domain: 'user',   status: 'stopped' },
-  { label: 'org.homebrew.mxcl.redis',   domain: 'user',   status: 'running' },
-  { label: 'com.docker.vmnetd',         domain: 'global', status: 'error'   },
-  { label: 'com.microsoft.autoupdate',  domain: 'global', status: 'stopped' },
-  { label: 'com.myco.agent',            domain: 'user',   status: 'error'   },
-];
-
-// Reset all signals before each test
-function resetSignals() {
-  jobs.value = [];
-  searchQuery.value = '';
-  categoryFilter.value = 'all';
-  statusFilter.value = 'all';
-  onlyMine.value = false;
-}
-
-// --- Tests ---
+import { jobs, searchQuery } from './state.js';
+import { FIXTURES, resetSignals } from './test-fixtures.js';
 
 describe('filteredJobs', () => {
   beforeEach(resetSignals);

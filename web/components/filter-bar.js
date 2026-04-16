@@ -1,5 +1,4 @@
 import { html } from 'htm/preact';
-import { effect } from '@preact/signals';
 import {
   categoryFilter,
   statusFilter,
@@ -12,19 +11,6 @@ import { CATEGORY_LABELS, CATEGORY_KEYS, STATUS_KEYS } from '../lib/classify.js'
 /** Display labels for "all" + each category/status. */
 const CATEGORY_DISPLAY = { all: 'All', ...CATEGORY_LABELS };
 const STATUS_DISPLAY = { all: 'All', running: 'Running', stopped: 'Stopped', error: 'Error' };
-
-// Persist onlyMine to localStorage
-effect(() => {
-  try { localStorage.setItem('launch-pilot:only-mine', String(onlyMine.value)); }
-  catch { /* private browsing */ }
-});
-
-// onlyMine ON → force categoryFilter to 'mine'
-effect(() => {
-  if (onlyMine.value) {
-    categoryFilter.value = 'mine';
-  }
-});
 
 export function FilterBar() {
   const cat = categoryFilter.value;

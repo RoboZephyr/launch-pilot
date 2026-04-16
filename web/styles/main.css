@@ -129,8 +129,15 @@ header p {
 .job-table__th--status {
   width: 2rem;
 }
+.job-row {
+  animation: row-fade-in 0.15s ease-out;
+}
 .job-row:hover {
   background: var(--color-bg-secondary);
+}
+@keyframes row-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .job-row__pid,
 .job-row__exit {

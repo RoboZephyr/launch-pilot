@@ -1,9 +1,7 @@
 import { describe, it, beforeEach } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { effect } from '@preact/signals';
 import {
   jobs,
-  searchQuery,
   filteredJobs,
   categoryFilter,
   statusFilter,
@@ -11,29 +9,9 @@ import {
   categoryCounts,
   statusCounts,
 } from '../lib/state.js';
+import { searchQuery } from '../lib/state.js';
 import { CATEGORY_LABELS, CATEGORY_KEYS, STATUS_KEYS } from '../lib/classify.js';
-
-// --- Test fixtures ---
-
-const FIXTURES = [
-  { label: 'com.apple.spotlight',       domain: 'user',   status: 'running' },
-  { label: 'com.apple.WindowServer',    domain: 'global', status: 'running' },
-  { label: 'com.example.myapp',         domain: 'user',   status: 'stopped' },
-  { label: 'org.homebrew.mxcl.redis',   domain: 'user',   status: 'running' },
-  { label: 'com.docker.vmnetd',         domain: 'global', status: 'error'   },
-  { label: 'com.microsoft.autoupdate',  domain: 'global', status: 'stopped' },
-  { label: 'com.myco.agent',            domain: 'user',   status: 'error'   },
-];
-
-function resetSignals() {
-  jobs.value = [];
-  searchQuery.value = '';
-  categoryFilter.value = 'all';
-  statusFilter.value = 'all';
-  onlyMine.value = false;
-}
-
-// --- FilterBar behavioral tests ---
+import { FIXTURES, resetSignals } from '../lib/test-fixtures.js';
 
 describe('FilterBar: category chips', () => {
   beforeEach(resetSignals);
@@ -101,42 +79,24 @@ describe('FilterBar: status tabs', () => {
 describe('FilterBar: Only Mine toggle', () => {
   beforeEach(resetSignals);
 
-  it('onlyMine=true forces categoryFilter to "mine" (via effect)', () => {
+  it('onlyMine=true forces categoryFilter to "mine" (via effect in state.js)', () => {
     jobs.value = FIXTURES;
-
-    // Simulate the effect that FilterBar sets up
-    const dispose = effect(() => {
-      if (onlyMine.value) {
-        categoryFilter.value = 'mine';
-      }
-    });
 
     categoryFilter.value = 'system';
     assert.equal(categoryFilter.value, 'system');
 
     onlyMine.value = true;
     assert.equal(categoryFilter.value, 'mine');
-
-    dispose();
   });
 
-  it('turning onlyMine OFF leaves categoryFilter at "mine" (no jump to "all")', () => {
+  it('turning onlyMine OFF resets categoryFilter to "all"', () => {
     jobs.value = FIXTURES;
-
-    const dispose = effect(() => {
-      if (onlyMine.value) {
-        categoryFilter.value = 'mine';
-      }
-    });
 
     onlyMine.value = true;
     assert.equal(categoryFilter.value, 'mine');
 
     onlyMine.value = false;
-    // Should stay at 'mine', not reset to 'all'
-    assert.equal(categoryFilter.value, 'mine');
-
-    dispose();
+    assert.equal(categoryFilter.value, 'all');
   });
 
   it('onlyMine + statusFilter compose correctly (intersection)', () => {

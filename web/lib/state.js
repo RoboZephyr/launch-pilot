@@ -1,5 +1,7 @@
-import { signal, computed } from '@preact/signals';
+import { signal, computed, effect } from '@preact/signals';
 import { classifyJob } from './classify.js';
+
+const ONLY_MINE_KEY = 'launch-pilot:only-mine';
 
 /** @type {import('@preact/signals').Signal<Array>} Full job list from SSE */
 export const jobs = signal([]);
@@ -25,17 +27,35 @@ export const categoryFilter = signal('all');
 /** @type {import('@preact/signals').Signal<'all'|'running'|'stopped'|'error'>} */
 export const statusFilter = signal('all');
 
-/** @type {import('@preact/signals').Signal<boolean>} Quick toggle — persisted to localStorage by FilterBar */
+/** @type {import('@preact/signals').Signal<boolean>} Quick toggle — persisted to localStorage */
 export const onlyMine = signal(
-  (() => { try { return localStorage.getItem('launch-pilot:only-mine') === 'true'; } catch { return false; } })()
+  (() => { try { return localStorage.getItem(ONLY_MINE_KEY) === 'true'; } catch { return false; } })()
 );
+
+// Persist onlyMine to localStorage
+effect(() => {
+  try { localStorage.setItem(ONLY_MINE_KEY, String(onlyMine.value)); }
+  catch { /* private browsing */ }
+});
+
+// onlyMine ON → force categoryFilter to 'mine'; OFF → reset to 'all'
+let _prevOnlyMine = onlyMine.peek();
+effect(() => {
+  const current = onlyMine.value;
+  if (current) {
+    if (categoryFilter.peek() !== 'mine') categoryFilter.value = 'mine';
+  } else if (_prevOnlyMine) {
+    categoryFilter.value = 'all';
+  }
+  _prevOnlyMine = current;
+});
 
 /** Filtered jobs — 4-stage pipeline: onlyMine → category → status → search */
 export const filteredJobs = computed(() => {
   let list = jobs.value;
 
   if (onlyMine.value) {
-    list = list.filter(j => j.domain === 'user' && !j.label.startsWith('com.apple.'));
+    list = list.filter(j => classifyJob(j) === 'mine');
   }
 
   const cat = categoryFilter.value;
@@ -68,7 +88,10 @@ export const categoryCounts = computed(() => {
 export const statusCounts = computed(() => {
   const list = jobs.value;
   const counts = { all: list.length, running: 0, stopped: 0, error: 0 };
-  for (const j of list) counts[j.status]++;
+  for (const j of list) {
+    const s = j.status;
+    if (s in counts) counts[s]++;
+  }
   return counts;
 });
 

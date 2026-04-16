@@ -14,6 +14,7 @@ import { DiagnosePanel } from './diagnose-panel.js';
 export function JobRow({ job }) {
   const [confirm, setConfirm] = useState(null); // { action: string } | null
 
+  const category = classifyJob(job);
   const dotClass = `status-dot status-dot--${job.status}`;
   const isExpanded = expandedJob.value === job.label;
   const panel = activePanel.value;
@@ -41,7 +42,7 @@ export function JobRow({ job }) {
   return html`
     <tr class="job-row">
       <td class="job-row__status"><span class=${dotClass} title=${job.status}></span></td>
-      <td class="job-row__label"><code>${job.label}</code><span class=${'category-badge category-badge--' + classifyJob(job)}>${CATEGORY_LABELS[classifyJob(job)]}</span></td>
+      <td class="job-row__label"><code>${job.label}</code><span class=${'category-badge category-badge--' + category}>${CATEGORY_LABELS[category]}</span></td>
       <td class="job-row__pid">${job.pid > 0 ? job.pid : '\u2014'}</td>
       <td class="job-row__exit">${job.lastExitStatus}</td>
       <td class="job-row__actions">

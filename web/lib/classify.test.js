@@ -18,6 +18,21 @@ describe('classifyJob', () => {
     assert.equal(classifyJob({ label: 'com.docker.vmnetd', domain: 'global' }), 'thirdparty');
     assert.equal(classifyJob({ label: 'com.microsoft.autoupdate', domain: 'global' }), 'thirdparty');
   });
+
+  it('returns "thirdparty" for empty/missing domain (plist-less jobs)', () => {
+    assert.equal(classifyJob({ label: 'com.example.noplist', domain: '' }), 'thirdparty');
+    assert.equal(classifyJob({ label: 'com.example.noplist', domain: undefined }), 'thirdparty');
+  });
+
+  it('returns "system" for com.apple.* even with empty domain', () => {
+    assert.equal(classifyJob({ label: 'com.apple.cfprefsd', domain: '' }), 'system');
+  });
+
+  it('returns "thirdparty" for missing/null label without crashing', () => {
+    assert.equal(classifyJob({ domain: 'user' }), 'thirdparty');
+    assert.equal(classifyJob({ label: null, domain: 'user' }), 'thirdparty');
+    assert.equal(classifyJob({ label: '', domain: 'user' }), 'thirdparty');
+  });
 });
 
 describe('CATEGORY_LABELS', () => {

@@ -6,6 +6,7 @@ const APPLE_PREFIX = 'com.apple.';
  * @returns {'mine'|'system'|'thirdparty'}
  */
 export function classifyJob(job) {
+  if (!job.label) return 'thirdparty';
   if (job.label.startsWith(APPLE_PREFIX)) return 'system';
   if (job.domain === 'user') return 'mine';
   return 'thirdparty';
