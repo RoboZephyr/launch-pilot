@@ -2,6 +2,7 @@ import { html, render } from 'htm/preact';
 import { useEffect } from 'preact/hooks';
 import { connectSSE } from './lib/sse.js';
 import { SearchBar } from './components/search-bar.js';
+import { FilterBar } from './components/filter-bar.js';
 import { JobTable } from './components/job-table.js';
 import { ToastContainer } from './components/toast.js';
 
@@ -18,6 +19,7 @@ function App() {
     </header>
     <main>
       <${SearchBar} />
+      <${FilterBar} />
       <${JobTable} />
     </main>
     <${ToastContainer} />
