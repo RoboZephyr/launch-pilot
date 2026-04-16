@@ -5,6 +5,9 @@
   --color-error: #ef4444;
   --color-stopped: #9ca3af;
   --color-warning: #f59e0b;
+  --color-mine: #3b82f6;
+  --color-system: #9ca3af;
+  --color-thirdparty: #8b5cf6;
   --color-bg: #ffffff;
   --color-bg-secondary: #f9fafb;
   --color-text: #111827;
@@ -393,3 +396,151 @@ header p {
   border-radius: var(--radius);
   margin-top: 0.25rem;
 }
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.filter-bar__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.filter-bar__row--space-between {
+  justify-content: space-between;
+}
+.filter-bar__chips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+/* Category chips */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.filter-chip:hover:not(:disabled) {
+  border-color: var(--color-text-secondary);
+  color: var(--color-text);
+}
+.filter-chip--active {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-text-secondary);
+  color: var(--color-text);
+  font-weight: 600;
+}
+.filter-chip--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.filter-chip__count {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* Status tabs */
+.status-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.status-tab:hover {
+  color: var(--color-text);
+}
+.status-tab--active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.status-tab--active.status-tab--all {
+  border-bottom-color: var(--color-text-secondary);
+}
+.status-tab--active.status-tab--running {
+  border-bottom-color: var(--color-running);
+}
+.status-tab--active.status-tab--stopped {
+  border-bottom-color: var(--color-stopped);
+}
+.status-tab--active.status-tab--error {
+  border-bottom-color: var(--color-error);
+}
+
+/* Only Mine toggle */
+.only-mine-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.only-mine-toggle__input {
+  display: none;
+}
+.only-mine-toggle__slider {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  background: var(--color-border);
+  border-radius: 9px;
+  transition: background 0.2s;
+}
+.only-mine-toggle__slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.only-mine-toggle__input:checked + .only-mine-toggle__slider {
+  background: var(--color-mine);
+}
+.only-mine-toggle__input:checked + .only-mine-toggle__slider::after {
+  transform: translateX(16px);
+}
+
+/* Category badge (inline in job rows) */
+.category-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: #fff;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+.category-badge--mine { background: var(--color-mine); }
+.category-badge--system { background: var(--color-system); }
+.category-badge--thirdparty { background: var(--color-thirdparty); }
