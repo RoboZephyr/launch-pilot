@@ -4,11 +4,24 @@ Visual control console for macOS launchd services. View status, read logs, diagn
 
 ## Features
 
-**Real-time monitoring** — Job status (running / stopped / error), PID, and exit codes update automatically via SSE every 5 seconds, no manual refresh needed.
+**Time-aware job status** — Six status values distinguish scheduled jobs waiting for their next trigger, recently-completed runs, truly offline plists, and classic running / stopped / error states. The backend derives these from PID, exit code, plist schedule shape, and a configurable recent-completion window.
+
+| Status | Meaning |
+|--------|---------|
+| running | PID > 0 |
+| scheduled | PID = 0, clean exit, has `StartInterval` / `StartCalendarInterval` / `RunAtLoad`, no recent log mtime |
+| completed | PID = 0, clean exit, log mtime within `--recent-window` (default 10m) |
+| stopped | PID = 0, clean exit, no schedule and no recent log mtime |
+| error | Non-zero last exit status |
+| offline | plist file exists but `launchctl list` does not return the label |
+
+**Next / last run heuristics** — Each job carries optional `nextRunAt` (computed from `StartCalendarInterval` or `StartInterval`) and `lastRunAt` (newer of stdout / stderr mtimes). Status badges show both on hover.
+
+**Real-time monitoring** — SSE (`/api/events`) pushes the full job list every 5 seconds; the frontend refreshes via Preact Signals without a manual reload.
 
 **Service control** — Start, stop, and reload LaunchAgents with one click. Confirmation dialogs prevent accidental operations.
 
-**Log viewer** — Tail stdout/stderr log files directly in the browser. Load up to 10,000 lines per file.
+**Log viewer** — Tail stdout / stderr log files directly in the browser. Load up to 10,000 lines per file.
 
 **Diagnostics** — 6 automated health checks per job:
 
@@ -29,10 +42,10 @@ Visual control console for macOS launchd services. View status, read logs, diagn
 | System | Label starts with `com.apple.` | Gray |
 | 3rd-party | `domain=global` and label does not start with `com.apple.` | Purple |
 
-**Multi-dimensional filtering** — Three filter dimensions that compose as AND:
+**Multi-dimensional filtering** — Four filter dimensions that compose as AND:
 
 - **Category chips** — All / Mine / System / 3rd-party, each showing count badge
-- **Status tabs** — All / Running / Stopped / Error, each showing count in parentheses
+- **Status tabs** — All / Running / Scheduled / Completed / Stopped / Error / Offline, each showing count
 - **Only Mine toggle** — One-click shortcut to show only user-created jobs (persisted to localStorage)
 - **Search** — Label substring filter, composable with all above
 
@@ -57,13 +70,23 @@ This produces a `launch-pilot` binary in the project root. The frontend is embed
 ## Usage
 
 ```bash
-launch-pilot              # random port, auto-opens browser
-launch-pilot --port 8080  # listen on explicit port
-launch-pilot --no-open    # start server without opening browser
-launch-pilot --version    # print version and exit
+launch-pilot                          # random port, auto-opens browser
+launch-pilot --port 8080              # listen on explicit port
+launch-pilot --no-open                # start server without opening browser
+launch-pilot --recent-window 30m      # mark jobs as "completed" if they ran in the last 30m
+launch-pilot --version                # print version and exit
 ```
 
 The server binds to `127.0.0.1` (localhost only). Press `Ctrl+C` to shut down gracefully (5-second timeout).
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--port` | int | `0` (random) | Listen port on `127.0.0.1` |
+| `--no-open` | bool | `false` | Skip auto-opening the browser |
+| `--recent-window` | duration | `10m` | How long after `lastRunAt` a job still shows as `completed`. Valid range: `1m`–`24h`. Accepts any Go duration string (`30m`, `1h30m`, `24h`). Outside the range exits with a clear stderr message. |
+| `--version` | bool | `false` | Print version and exit |
 
 ## API
 
@@ -71,42 +94,71 @@ All endpoints return JSON. Labels must match `[a-zA-Z0-9._-]+`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/jobs` | List all jobs with status, PID, exit code, plist metadata |
+| GET | `/api/jobs` | List all jobs including offline plists |
 | GET | `/api/jobs/{label}` | Get single job details |
-| POST | `/api/jobs/{label}/start` | Start a stopped job |
-| POST | `/api/jobs/{label}/stop` | Send SIGTERM to a running job |
-| POST | `/api/jobs/{label}/reload` | Unload and reload (bootout + bootstrap) |
-| GET | `/api/jobs/{label}/logs?lines=200` | Tail stdout/stderr logs (max 10,000 lines) |
-| GET | `/api/jobs/{label}/diagnose` | Run 6 diagnostic checks |
+| POST | `/api/jobs/{label}/start` | `launchctl kickstart` |
+| POST | `/api/jobs/{label}/stop` | `launchctl kill SIGTERM` |
+| POST | `/api/jobs/{label}/reload` | `launchctl bootout` + `bootstrap` |
+| GET | `/api/jobs/{label}/logs?lines=200` | Tail stdout / stderr (max 10,000 lines) |
+| GET | `/api/jobs/{label}/diagnose` | Run the 6 diagnostic checks |
 | GET | `/api/events` | SSE stream — pushes full job list every 5s |
+
+### Job JSON shape
+
+```json
+{
+  "label": "com.example.backup",
+  "pid": 0,
+  "lastExitStatus": 0,
+  "status": "scheduled",
+  "plistPath": "/Users/you/Library/LaunchAgents/com.example.backup.plist",
+  "program": "/usr/local/bin/backup",
+  "programArgs": ["/usr/local/bin/backup", "--daily"],
+  "standardOutPath": "/tmp/backup.out",
+  "standardErrPath": "/tmp/backup.err",
+  "runAtLoad": false,
+  "keepAlive": false,
+  "domain": "user",
+  "nextRunAt": "2026-04-19T03:00:00Z",
+  "lastRunAt": "2026-04-18T03:00:04Z",
+  "startInterval": 0,
+  "startCalendarInterval": [{ "Hour": 3, "Minute": 0 }]
+}
+```
+
+`nextRunAt`, `lastRunAt`, `startInterval`, and `startCalendarInterval` are optional (omitted when empty). Old clients that ignore these fields continue to work.
 
 ## Architecture
 
 ```
 Browser (Preact + Signals, no build step)
-    │
-    ├── SSE (/api/events)     ← real-time job status push
-    ├── REST (/api/jobs/...)  ← actions, logs, diagnostics
-    │
-    ▼
+    |
+    +-- SSE (/api/events)     <- real-time job status push
+    +-- REST (/api/jobs/...)  <- actions, logs, diagnostics
+    |
+    v
 Go HTTP Server (net/http, embedded frontend via go:embed)
-    │
-    ├── Service layer         ← merges launchctl list + plist data
-    ├── Diagnose engine       ← 6 read-only health checks
-    │
-    ▼
+    |
+    +-- Service layer         <- merges launchctl list + plist data
+    |     NextCalendarFire / NextIntervalFire / LastRunAt
+    |     DeriveStatus(pid, exit, plist, lastRunAt, now, window)
+    +-- Diagnose engine       <- 6 read-only health checks
+    |
+    v
 launchctl CLI + plist files
-    ├── ~/Library/LaunchAgents     (user domain)
-    └── /Library/LaunchAgents      (global domain)
+    +-- ~/Library/LaunchAgents     (user domain)
+    +-- /Library/LaunchAgents      (global domain)
 ```
 
 **Frontend stack**: Preact + Signals + htm, vendored as ESM modules via import map. No bundler, no transpiler — browser-native ES modules.
 
-**Plist scanning**: Reads `~/Library/LaunchAgents` and `/Library/LaunchAgents` with mtime-based caching to avoid redundant disk reads.
+**Plist scanning**: Reads `~/Library/LaunchAgents` and `/Library/LaunchAgents` with mtime-based caching. Plists that exist on disk but are absent from `launchctl list` are appended as synthetic `offline` jobs so the UI can surface unloaded plists.
 
 **Single binary**: All frontend assets (HTML, JS, CSS) are embedded in the Go binary via `go:embed`. No external files needed at runtime.
 
-**Client-side filtering**: All filter/search logic runs in the browser using Preact Signals `computed()`. The backend pushes the full job list (~50 KB for 300 jobs) via SSE; the 4-stage filter pipeline (onlyMine → category → status → search) runs in < 1ms on 300 items.
+**Client-side filtering**: All filter/search logic runs in the browser using Preact Signals `computed()`. The backend pushes the full job list (~50 KB for 300 jobs) via SSE; the filter pipeline (onlyMine → category → status → search) runs in < 1ms on 300 items.
+
+**Zero new Go deps**: calendar / interval next-fire calculation uses the standard-library `time` package only. No cron library.
 
 ## Development
 
@@ -132,6 +184,7 @@ Frontend modules are tested with Node.js built-in test runner:
 node --test web/lib/classify.test.js
 node --loader web/lib/test-loader.mjs --test web/lib/state.test.js
 node --loader web/lib/test-loader.mjs --test web/components/filter-bar.test.js
+node --loader web/lib/test-loader.mjs --test web/components/job-row.test.js
 ```
 
 The test loader maps bare specifiers (`@preact/signals`) to vendored ESM files for Node.js compatibility.
@@ -141,14 +194,14 @@ The test loader maps bare specifiers (`@preact/signals`) to vendored ESM files f
 ```
 cmd/launch-pilot/       Go entrypoint (CLI flags, server startup)
 internal/
-  launchd/              Job model, launchctl parser, service layer
+  launchd/              Job model, launchctl parser, service layer, DeriveStatus
   diagnose/             6-check diagnostic engine
-  plist/                Plist reader with mtime cache
+  plist/                Plist reader + mtime cache + NextCalendarFire / NextIntervalFire / LastRunAt
   server/               HTTP router, REST handlers, SSE handler
 web/
   app.js                Preact app root
   index.html            HTML shell with import map
-  components/           UI components (JobRow, FilterBar, SearchBar, etc.)
+  components/           UI components (JobRow, FilterBar, SearchBar, job-tooltip, etc.)
   lib/                  State signals, classification logic, SSE client, API client
   styles/               CSS (single main.css, CSS variables for theming)
   vendor/               Vendored ESM: Preact, htm, Signals
