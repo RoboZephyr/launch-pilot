@@ -45,6 +45,54 @@ const minimalPlistXML = `<?xml version="1.0" encoding="UTF-8"?>
 </dict>
 </plist>`
 
+// calendarSingleDictPlistXML uses StartCalendarInterval as a single <dict>,
+// which is a valid shape per launchd.plist(5).
+const calendarSingleDictPlistXML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.example.single</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>9</integer>
+		<key>Minute</key>
+		<integer>30</integer>
+	</dict>
+</dict>
+</plist>`
+
+// calendarArrayPlistXML uses StartCalendarInterval as an <array> of <dict>s,
+// also valid per launchd.plist(5).
+const calendarArrayPlistXML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.example.array</string>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Weekday</key>
+			<integer>1</integer>
+			<key>Hour</key>
+			<integer>8</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key>
+			<integer>5</integer>
+			<key>Hour</key>
+			<integer>17</integer>
+			<key>Minute</key>
+			<integer>30</integer>
+		</dict>
+	</array>
+</dict>
+</plist>`
+
 func writeTempPlist(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
@@ -133,6 +181,69 @@ func TestReadPlist(t *testing.T) {
 		_, err := ReadPlist(path)
 		if err == nil {
 			t.Fatal("expected error for invalid plist, got nil")
+		}
+	})
+
+	t.Run("StartCalendarInterval as single dict decodes as one entry", func(t *testing.T) {
+		path := writeTempPlist(t, dir, "com.example.single.plist", calendarSingleDictPlistXML)
+
+		data, err := ReadPlist(path)
+		if err != nil {
+			t.Fatalf("ReadPlist: %v", err)
+		}
+		if len(data.StartCalendarInterval) != 1 {
+			t.Fatalf("StartCalendarInterval length = %d, want 1", len(data.StartCalendarInterval))
+		}
+		entry := data.StartCalendarInterval[0]
+		if entry.Hour == nil || *entry.Hour != 9 {
+			t.Errorf("Hour: got %v, want 9", entry.Hour)
+		}
+		if entry.Minute == nil || *entry.Minute != 30 {
+			t.Errorf("Minute: got %v, want 30", entry.Minute)
+		}
+		if entry.Weekday != nil {
+			t.Errorf("Weekday: got %v, want nil (unspecified)", entry.Weekday)
+		}
+	})
+
+	t.Run("StartCalendarInterval as array of dicts decodes all entries", func(t *testing.T) {
+		path := writeTempPlist(t, dir, "com.example.array.plist", calendarArrayPlistXML)
+
+		data, err := ReadPlist(path)
+		if err != nil {
+			t.Fatalf("ReadPlist: %v", err)
+		}
+		if len(data.StartCalendarInterval) != 2 {
+			t.Fatalf("StartCalendarInterval length = %d, want 2", len(data.StartCalendarInterval))
+		}
+		mon := data.StartCalendarInterval[0]
+		if mon.Weekday == nil || *mon.Weekday != 1 {
+			t.Errorf("entry[0].Weekday: got %v, want 1", mon.Weekday)
+		}
+		if mon.Hour == nil || *mon.Hour != 8 {
+			t.Errorf("entry[0].Hour: got %v, want 8", mon.Hour)
+		}
+		fri := data.StartCalendarInterval[1]
+		if fri.Weekday == nil || *fri.Weekday != 5 {
+			t.Errorf("entry[1].Weekday: got %v, want 5", fri.Weekday)
+		}
+		if fri.Hour == nil || *fri.Hour != 17 {
+			t.Errorf("entry[1].Hour: got %v, want 17", fri.Hour)
+		}
+		if fri.Minute == nil || *fri.Minute != 30 {
+			t.Errorf("entry[1].Minute: got %v, want 30", fri.Minute)
+		}
+	})
+
+	t.Run("absent StartCalendarInterval yields empty slice", func(t *testing.T) {
+		path := writeTempPlist(t, dir, "com.example.nocal.plist", samplePlistXML)
+
+		data, err := ReadPlist(path)
+		if err != nil {
+			t.Fatalf("ReadPlist: %v", err)
+		}
+		if len(data.StartCalendarInterval) != 0 {
+			t.Errorf("StartCalendarInterval length = %d, want 0", len(data.StartCalendarInterval))
 		}
 	})
 }

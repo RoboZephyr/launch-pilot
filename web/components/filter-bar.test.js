@@ -11,6 +11,7 @@ import {
 } from '../lib/state.js';
 import { searchQuery } from '../lib/state.js';
 import { CATEGORY_LABELS, CATEGORY_KEYS, STATUS_KEYS } from '../lib/classify.js';
+import { STATUS_DISPLAY } from './filter-bar.js';
 import { FIXTURES, resetSignals } from '../lib/test-fixtures.js';
 
 describe('FilterBar: category chips', () => {
@@ -49,9 +50,21 @@ describe('FilterBar: category chips', () => {
 describe('FilterBar: status tabs', () => {
   beforeEach(resetSignals);
 
-  it('should have 4 status options: all, running, stopped, error', () => {
-    assert.equal(STATUS_KEYS.length, 4);
-    assert.deepEqual(STATUS_KEYS, ['all', 'running', 'stopped', 'error']);
+  it('should have 7 status options including scheduled/completed/offline', () => {
+    assert.equal(STATUS_KEYS.length, 7);
+    assert.deepEqual(STATUS_KEYS, [
+      'all', 'running', 'scheduled', 'completed', 'stopped', 'error', 'offline',
+    ]);
+  });
+
+  it('STATUS_DISPLAY exports labels for all 7 statuses', () => {
+    assert.equal(STATUS_DISPLAY.all, 'All');
+    assert.equal(STATUS_DISPLAY.running, 'Running');
+    assert.equal(STATUS_DISPLAY.scheduled, 'Scheduled');
+    assert.equal(STATUS_DISPLAY.completed, 'Completed');
+    assert.equal(STATUS_DISPLAY.stopped, 'Stopped');
+    assert.equal(STATUS_DISPLAY.error, 'Error');
+    assert.equal(STATUS_DISPLAY.offline, 'Offline');
   });
 
   it('statusCounts reflects correct counts per status', () => {

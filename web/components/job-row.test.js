@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
+import { buildStatusTooltip } from './job-tooltip.js';
 
 /**
  * S04 — Category Badge in Job Rows
@@ -53,5 +54,53 @@ describe('JobRow category badge derivation', () => {
       assert.ok(CATEGORY_LABELS[cat] !== undefined,
         `CATEGORY_LABELS missing key "${cat}" for job ${job.label}`);
     }
+  });
+});
+
+describe('buildStatusTooltip', () => {
+  it('returns just status when no schedule fields are set', () => {
+    const tip = buildStatusTooltip({ status: 'running' });
+    assert.equal(tip, 'running');
+  });
+
+  it('includes Next run when nextRunAt is set', () => {
+    const tip = buildStatusTooltip({
+      status: 'scheduled',
+      nextRunAt: '2026-04-17T09:00:00Z',
+    });
+    assert.ok(tip.startsWith('scheduled'));
+    assert.ok(tip.includes('Next run:'));
+  });
+
+  it('includes Last run when lastRunAt is set', () => {
+    const tip = buildStatusTooltip({
+      status: 'completed',
+      lastRunAt: '2026-04-17T08:55:00Z',
+    });
+    assert.ok(tip.includes('Last run:'));
+  });
+
+  it('shows unknown fallback for completed/scheduled without lastRunAt', () => {
+    const tipCompleted = buildStatusTooltip({ status: 'completed' });
+    assert.ok(tipCompleted.includes('Last run: unknown'));
+
+    const tipScheduled = buildStatusTooltip({ status: 'scheduled' });
+    assert.ok(tipScheduled.includes('Last run: unknown'));
+  });
+
+  it('does not show unknown fallback for stopped/running/error without lastRunAt', () => {
+    assert.ok(!buildStatusTooltip({ status: 'stopped' }).includes('unknown'));
+    assert.ok(!buildStatusTooltip({ status: 'running' }).includes('unknown'));
+    assert.ok(!buildStatusTooltip({ status: 'error' }).includes('unknown'));
+  });
+
+  it('joins parts with em-dash-like separator', () => {
+    const tip = buildStatusTooltip({
+      status: 'scheduled',
+      nextRunAt: '2026-04-17T09:00:00Z',
+      lastRunAt: '2026-04-17T08:00:00Z',
+    });
+    // Three parts: status, Next run, Last run
+    assert.equal(tip.split(' — ').length, 3);
   });
 });

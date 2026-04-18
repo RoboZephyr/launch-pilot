@@ -153,4 +153,26 @@ describe('statusCounts', () => {
     assert.equal(counts.stopped, 2);   // myapp, microsoft
     assert.equal(counts.error, 2);     // docker, myco.agent
   });
+
+  it('includes scheduled, completed, offline keys (default 0)', () => {
+    jobs.value = FIXTURES;
+    const counts = statusCounts.value;
+    assert.equal(counts.scheduled, 0);
+    assert.equal(counts.completed, 0);
+    assert.equal(counts.offline, 0);
+  });
+
+  it('counts the 3 new statuses when present in jobs', () => {
+    jobs.value = [
+      { label: 'a', domain: 'user', status: 'scheduled' },
+      { label: 'b', domain: 'user', status: 'scheduled' },
+      { label: 'c', domain: 'user', status: 'completed' },
+      { label: 'd', domain: 'global', status: 'offline' },
+    ];
+    const counts = statusCounts.value;
+    assert.equal(counts.all, 4);
+    assert.equal(counts.scheduled, 2);
+    assert.equal(counts.completed, 1);
+    assert.equal(counts.offline, 1);
+  });
 });

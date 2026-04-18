@@ -23,4 +23,12 @@ export const CATEGORY_LABELS = {
 export const CATEGORY_KEYS = ['all', 'mine', 'system', 'thirdparty'];
 
 /** All status filter keys including "all". */
-export const STATUS_KEYS = ['all', 'running', 'stopped', 'error'];
+export const STATUS_KEYS = [
+  'all',
+  'running',
+  'scheduled',
+  'completed',
+  'stopped',
+  'error',
+  'offline',
+];

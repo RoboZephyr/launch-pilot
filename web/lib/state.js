@@ -24,7 +24,7 @@ export const activePanel = signal(null);
 /** @type {import('@preact/signals').Signal<'all'|'mine'|'system'|'thirdparty'>} */
 export const categoryFilter = signal('all');
 
-/** @type {import('@preact/signals').Signal<'all'|'running'|'stopped'|'error'>} */
+/** @type {import('@preact/signals').Signal<'all'|'running'|'scheduled'|'completed'|'stopped'|'error'|'offline'>} */
 export const statusFilter = signal('all');
 
 /** @type {import('@preact/signals').Signal<boolean>} Quick toggle — persisted to localStorage */
@@ -87,7 +87,15 @@ export const categoryCounts = computed(() => {
 /** Status counts from full job list (not filtered). */
 export const statusCounts = computed(() => {
   const list = jobs.value;
-  const counts = { all: list.length, running: 0, stopped: 0, error: 0 };
+  const counts = {
+    all: list.length,
+    running: 0,
+    scheduled: 0,
+    completed: 0,
+    stopped: 0,
+    error: 0,
+    offline: 0,
+  };
   for (const j of list) {
     const s = j.status;
     if (s in counts) counts[s]++;

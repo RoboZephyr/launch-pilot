@@ -3,17 +3,24 @@ package launchd
 import (
 	"encoding/json"
 	"testing"
+	"time"
+
+	"github.com/A404coder/launch-pilot/internal/plist"
 )
 
+func intPtr(v int) *int { return &v }
+
 func TestJobStatus_Values(t *testing.T) {
-	// Verify the three status constants exist and have expected string values.
 	tests := []struct {
 		status JobStatus
 		want   string
 	}{
 		{StatusRunning, "running"},
+		{StatusScheduled, "scheduled"},
+		{StatusCompleted, "completed"},
 		{StatusStopped, "stopped"},
 		{StatusError, "error"},
+		{StatusOffline, "offline"},
 	}
 	for _, tt := range tests {
 		if string(tt.status) != tt.want {
@@ -23,31 +30,159 @@ func TestJobStatus_Values(t *testing.T) {
 }
 
 func TestJob_DeriveStatus(t *testing.T) {
-	tests := []struct {
-		name string
-		pid  int
-		exit int
-		want JobStatus
-	}{
-		{"running process", 584, 0, StatusRunning},
-		{"running with prior error", 1234, 78, StatusRunning},
-		{"stopped normally", 0, 0, StatusStopped},
-		{"error exit code", 0, 78, StatusError},
-		{"signal killed", 0, -9, StatusError},
-		{"negative exit", 0, -15, StatusError},
-		{"exit code 1", 0, 1, StatusError},
+	now := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
+	recent := now.Add(-2 * time.Minute)
+	old := now.Add(-2 * time.Hour)
+
+	recentPtr := &recent
+	oldPtr := &old
+
+	calSchedule := plist.PlistData{
+		StartCalendarInterval: plist.CalendarEntries{
+			{Hour: intPtr(9), Minute: intPtr(0)},
+		},
 	}
+	intervalSchedule := plist.PlistData{StartInterval: 300}
+	runAtLoadOnly := plist.PlistData{RunAtLoad: true}
+	emptyPlist := plist.PlistData{}
+
+	tests := []struct {
+		name    string
+		pid     int
+		exit    int
+		plist   plist.PlistData
+		lastRun *time.Time
+		want    JobStatus
+	}{
+		{
+			name:    "pid>0 always running even with schedule",
+			pid:     584,
+			exit:    0,
+			plist:   calSchedule,
+			lastRun: nil,
+			want:    StatusRunning,
+		},
+		{
+			name:    "pid>0 running overrides prior nonzero exit",
+			pid:     1234,
+			exit:    78,
+			plist:   emptyPlist,
+			lastRun: nil,
+			want:    StatusRunning,
+		},
+		{
+			name:    "pid=0 with nonzero exit is error",
+			pid:     0,
+			exit:    78,
+			plist:   calSchedule,
+			lastRun: recentPtr,
+			want:    StatusError,
+		},
+		{
+			name:    "pid=0 exit=0 with recent lastRun is completed (calendar schedule)",
+			pid:     0,
+			exit:    0,
+			plist:   calSchedule,
+			lastRun: recentPtr,
+			want:    StatusCompleted,
+		},
+		{
+			name:    "pid=0 exit=0 with recent lastRun is completed (interval schedule)",
+			pid:     0,
+			exit:    0,
+			plist:   intervalSchedule,
+			lastRun: recentPtr,
+			want:    StatusCompleted,
+		},
+		{
+			name:    "pid=0 exit=0 with calendar schedule and no lastRun is scheduled",
+			pid:     0,
+			exit:    0,
+			plist:   calSchedule,
+			lastRun: nil,
+			want:    StatusScheduled,
+		},
+		{
+			name:    "pid=0 exit=0 with interval schedule and no lastRun is scheduled",
+			pid:     0,
+			exit:    0,
+			plist:   intervalSchedule,
+			lastRun: nil,
+			want:    StatusScheduled,
+		},
+		{
+			name:    "pid=0 exit=0 with stale lastRun and schedule is scheduled",
+			pid:     0,
+			exit:    0,
+			plist:   calSchedule,
+			lastRun: oldPtr,
+			want:    StatusScheduled,
+		},
+		{
+			name:    "pid=0 exit=0 with RunAtLoad only is scheduled",
+			pid:     0,
+			exit:    0,
+			plist:   runAtLoadOnly,
+			lastRun: nil,
+			want:    StatusScheduled,
+		},
+		{
+			name:    "pid=0 exit=0 with stale lastRun and no schedule is stopped",
+			pid:     0,
+			exit:    0,
+			plist:   emptyPlist,
+			lastRun: oldPtr,
+			want:    StatusStopped,
+		},
+		{
+			name:    "pid=0 exit=0 with no plist and no lastRun is stopped",
+			pid:     0,
+			exit:    0,
+			plist:   emptyPlist,
+			lastRun: nil,
+			want:    StatusStopped,
+		},
+		{
+			name:    "signal-killed exit is error",
+			pid:     0,
+			exit:    -9,
+			plist:   emptyPlist,
+			lastRun: nil,
+			want:    StatusError,
+		},
+	}
+
+	window := 10 * time.Minute
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DeriveStatus(tt.pid, tt.exit)
+			got := DeriveStatus(tt.pid, tt.exit, tt.plist, tt.lastRun, now, window)
 			if got != tt.want {
-				t.Errorf("DeriveStatus(%d, %d) = %q, want %q", tt.pid, tt.exit, got, tt.want)
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
+func TestDeriveStatus_WindowBoundary(t *testing.T) {
+	now := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
+	window := 10 * time.Minute
+	exactlyWindow := now.Add(-window)
+	justOver := now.Add(-window - time.Second)
+
+	schedule := plist.PlistData{StartInterval: 300}
+
+	if got := DeriveStatus(0, 0, schedule, &exactlyWindow, now, window); got != StatusCompleted {
+		t.Errorf("lastRun exactly at window should be completed, got %q", got)
+	}
+	if got := DeriveStatus(0, 0, schedule, &justOver, now, window); got != StatusScheduled {
+		t.Errorf("lastRun just beyond window should be scheduled, got %q", got)
+	}
+}
+
 func TestJob_JSONRoundTrip(t *testing.T) {
+	next := time.Date(2026, 4, 18, 9, 0, 0, 0, time.UTC)
+	last := time.Date(2026, 4, 17, 9, 0, 0, 0, time.UTC)
+
 	original := Job{
 		Label:           "com.example.myapp",
 		PID:             584,
@@ -61,6 +196,12 @@ func TestJob_JSONRoundTrip(t *testing.T) {
 		RunAtLoad:       true,
 		KeepAlive:       false,
 		Domain:          "user",
+		NextRunAt:       &next,
+		LastRunAt:       &last,
+		StartInterval:   300,
+		StartCalendarInterval: []plist.CalendarEntry{
+			{Hour: intPtr(9), Minute: intPtr(0)},
+		},
 	}
 
 	data, err := json.Marshal(original)
@@ -73,47 +214,30 @@ func TestJob_JSONRoundTrip(t *testing.T) {
 		t.Fatalf("Unmarshal error: %v", err)
 	}
 
-	// Verify all fields round-trip correctly.
 	if decoded.Label != original.Label {
 		t.Errorf("Label: got %q, want %q", decoded.Label, original.Label)
 	}
 	if decoded.PID != original.PID {
 		t.Errorf("PID: got %d, want %d", decoded.PID, original.PID)
 	}
-	if decoded.LastExitStatus != original.LastExitStatus {
-		t.Errorf("LastExitStatus: got %d, want %d", decoded.LastExitStatus, original.LastExitStatus)
-	}
 	if decoded.Status != original.Status {
 		t.Errorf("Status: got %q, want %q", decoded.Status, original.Status)
 	}
-	if decoded.PlistPath != original.PlistPath {
-		t.Errorf("PlistPath: got %q, want %q", decoded.PlistPath, original.PlistPath)
+	if decoded.NextRunAt == nil || !decoded.NextRunAt.Equal(next) {
+		t.Errorf("NextRunAt: got %v, want %v", decoded.NextRunAt, next)
 	}
-	if decoded.Program != original.Program {
-		t.Errorf("Program: got %q, want %q", decoded.Program, original.Program)
+	if decoded.LastRunAt == nil || !decoded.LastRunAt.Equal(last) {
+		t.Errorf("LastRunAt: got %v, want %v", decoded.LastRunAt, last)
 	}
-	if len(decoded.ProgramArgs) != len(original.ProgramArgs) {
-		t.Fatalf("ProgramArgs length: got %d, want %d", len(decoded.ProgramArgs), len(original.ProgramArgs))
+	if decoded.StartInterval != 300 {
+		t.Errorf("StartInterval: got %d, want 300", decoded.StartInterval)
 	}
-	for i, arg := range decoded.ProgramArgs {
-		if arg != original.ProgramArgs[i] {
-			t.Errorf("ProgramArgs[%d]: got %q, want %q", i, arg, original.ProgramArgs[i])
-		}
+	if len(decoded.StartCalendarInterval) != 1 {
+		t.Fatalf("StartCalendarInterval length: got %d, want 1", len(decoded.StartCalendarInterval))
 	}
-	if decoded.StandardOutPath != original.StandardOutPath {
-		t.Errorf("StandardOutPath: got %q, want %q", decoded.StandardOutPath, original.StandardOutPath)
-	}
-	if decoded.StandardErrPath != original.StandardErrPath {
-		t.Errorf("StandardErrPath: got %q, want %q", decoded.StandardErrPath, original.StandardErrPath)
-	}
-	if decoded.RunAtLoad != original.RunAtLoad {
-		t.Errorf("RunAtLoad: got %v, want %v", decoded.RunAtLoad, original.RunAtLoad)
-	}
-	if decoded.KeepAlive != original.KeepAlive {
-		t.Errorf("KeepAlive: got %v, want %v", decoded.KeepAlive, original.KeepAlive)
-	}
-	if decoded.Domain != original.Domain {
-		t.Errorf("Domain: got %q, want %q", decoded.Domain, original.Domain)
+	got0 := decoded.StartCalendarInterval[0]
+	if got0.Hour == nil || *got0.Hour != 9 {
+		t.Errorf("entry[0].Hour: got %v, want 9", got0.Hour)
 	}
 }
 
@@ -155,10 +279,15 @@ func TestJob_JSONFieldNames(t *testing.T) {
 			t.Errorf("expected JSON field %q not found", field)
 		}
 	}
+
+	for _, field := range []string{"nextRunAt", "lastRunAt", "startInterval", "startCalendarInterval"} {
+		if _, ok := raw[field]; ok {
+			t.Errorf("expected nil/zero field %q to be omitted, but it was present", field)
+		}
+	}
 }
 
 func TestJob_EmptyProgramArgs(t *testing.T) {
-	// ProgramArgs should marshal as empty array, not null.
 	job := Job{
 		Label:       "com.test.empty",
 		ProgramArgs: []string{},

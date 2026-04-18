@@ -6,6 +6,9 @@ import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
 import { ConfirmDialog } from './confirm-dialog.js';
 import { LogViewer } from './log-viewer.js';
 import { DiagnosePanel } from './diagnose-panel.js';
+import { buildStatusTooltip } from './job-tooltip.js';
+
+export { buildStatusTooltip };
 
 /**
  * Single row in the job table with action buttons and expandable panels.
@@ -41,7 +44,7 @@ export function JobRow({ job }) {
 
   return html`
     <tr class="job-row">
-      <td class="job-row__status"><span class=${dotClass} title=${job.status}></span></td>
+      <td class="job-row__status"><span class=${dotClass} title=${buildStatusTooltip(job)}></span></td>
       <td class="job-row__label"><code>${job.label}</code><span class=${'category-badge category-badge--' + category}>${CATEGORY_LABELS[category]}</span></td>
       <td class="job-row__pid">${job.pid > 0 ? job.pid : '\u2014'}</td>
       <td class="job-row__exit">${job.lastExitStatus}</td>

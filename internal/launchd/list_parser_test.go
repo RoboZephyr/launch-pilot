@@ -160,25 +160,3 @@ func TestParseListOutput(t *testing.T) {
 	}
 }
 
-func TestListEntry_DeriveStatus(t *testing.T) {
-	tests := []struct {
-		name  string
-		entry ListEntry
-		want  JobStatus
-	}{
-		{"running", ListEntry{PID: 584, LastExitStatus: 0}, StatusRunning},
-		{"stopped", ListEntry{PID: 0, LastExitStatus: 0}, StatusStopped},
-		{"error", ListEntry{PID: 0, LastExitStatus: 78}, StatusError},
-		{"signal killed", ListEntry{PID: 0, LastExitStatus: -9}, StatusError},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := DeriveStatus(tt.entry.PID, tt.entry.LastExitStatus)
-			if got != tt.want {
-				t.Errorf("DeriveStatus(%d, %d) = %q, want %q",
-					tt.entry.PID, tt.entry.LastExitStatus, got, tt.want)
-			}
-		})
-	}
-}

@@ -50,7 +50,16 @@ describe('CATEGORY_KEYS', () => {
 });
 
 describe('STATUS_KEYS', () => {
-  it('has 4 entries: all, running, stopped, error', () => {
-    assert.deepEqual(STATUS_KEYS, ['all', 'running', 'stopped', 'error']);
+  it('has 7 entries: all, running, scheduled, completed, stopped, error, offline', () => {
+    assert.deepEqual(STATUS_KEYS, [
+      'all', 'running', 'scheduled', 'completed', 'stopped', 'error', 'offline',
+    ]);
+    assert.equal(STATUS_KEYS.length, 7);
+  });
+
+  it('includes scheduled, completed, and offline', () => {
+    assert.ok(STATUS_KEYS.includes('scheduled'));
+    assert.ok(STATUS_KEYS.includes('completed'));
+    assert.ok(STATUS_KEYS.includes('offline'));
   });
 });

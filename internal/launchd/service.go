@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/A404coder/launch-pilot/internal/plist"
 )
@@ -94,15 +95,24 @@ type Service struct {
 	domain  string // "gui/<UID>"
 	homeDir string
 	cache   *plist.Cache
+	window  time.Duration
 
 	// Overridable for testing.
 	runList   func() (string, error)
 	scanPlist func() []plist.ScanResult
 	runExec   func(name string, args ...string) (*ExecResult, error)
+	nowFn     func() time.Time
+	statFn    func(string) (os.FileInfo, error)
 }
 
-// NewService creates a Service configured for the current user.
+// NewService creates a Service configured for the current user with the
+// default recent-completion window.
 func NewService() *Service {
+	return NewServiceWithWindow(DefaultRecentWindow)
+}
+
+// NewServiceWithWindow creates a Service with an explicit completion window.
+func NewServiceWithWindow(window time.Duration) *Service {
 	uid := os.Getuid()
 	home, _ := os.UserHomeDir()
 	s := &Service{
@@ -110,6 +120,9 @@ func NewService() *Service {
 		domain:  fmt.Sprintf("gui/%d", uid),
 		homeDir: home,
 		cache:   plist.NewCache(),
+		window:  window,
+		nowFn:   time.Now,
+		statFn:  os.Stat,
 	}
 	s.runList = s.defaultRunList
 	s.scanPlist = s.defaultScanPlist
@@ -132,7 +145,9 @@ func (s *Service) defaultScanPlist() []plist.ScanResult {
 }
 
 // ListJobs returns all launchd jobs visible to the current user, with plist
-// data merged when a matching plist file is found.
+// data merged when a matching plist file is found. Plist files whose Label
+// is not present in launchctl output are appended as synthetic
+// StatusOffline jobs so the UI can surface unloaded plists.
 func (s *Service) ListJobs() ([]Job, error) {
 	output, err := s.runList()
 	if err != nil {
@@ -140,9 +155,6 @@ func (s *Service) ListJobs() ([]Job, error) {
 	}
 
 	entries := ParseListOutput(output)
-	if len(entries) == 0 {
-		return []Job{}, nil
-	}
 
 	// Build label → plist lookup from scanned plist files.
 	plistMap := make(map[string]plist.ScanResult)
@@ -150,16 +162,28 @@ func (s *Service) ListJobs() ([]Job, error) {
 		plistMap[sr.Data.Label] = sr
 	}
 
-	jobs := make([]Job, 0, len(entries))
+	now := s.now()
+	jobs := make([]Job, 0, len(entries)+len(plistMap))
+	seen := make(map[string]struct{}, len(entries))
 	for _, e := range entries {
+		seen[e.Label] = struct{}{}
+		sr, hasPlist := plistMap[e.Label]
+		var lastRunAt *time.Time
+		if hasPlist {
+			if t := plist.LastRunAt(sr.Data.StandardOutPath, sr.Data.StandardErrorPath, s.stat()); !t.IsZero() {
+				lastRunAt = &t
+			}
+		}
+
 		job := Job{
 			Label:          e.Label,
 			PID:            e.PID,
 			LastExitStatus: e.LastExitStatus,
-			Status:         DeriveStatus(e.PID, e.LastExitStatus),
+			Status:         DeriveStatus(e.PID, e.LastExitStatus, sr.Data, lastRunAt, now, s.window),
+			LastRunAt:      lastRunAt,
 		}
 
-		if sr, ok := plistMap[e.Label]; ok {
+		if hasPlist {
 			job.PlistPath = sr.Path
 			job.Program = sr.Data.Program
 			job.ProgramArgs = sr.Data.ProgramArguments
@@ -168,8 +192,13 @@ func (s *Service) ListJobs() ([]Job, error) {
 			job.RunAtLoad = sr.Data.RunAtLoad
 			job.KeepAlive = sr.Data.KeepAlive
 			job.Domain = s.detectDomain(sr.Path)
+			job.StartInterval = sr.Data.StartInterval
+			job.StartCalendarInterval = sr.Data.StartCalendarInterval
+			if next := computeNextRun(sr.Data, lastRunAt, now); !next.IsZero() {
+				n := next
+				job.NextRunAt = &n
+			}
 
-			// Fallback: if Program is empty, use ProgramArguments[0].
 			if job.Program == "" && len(job.ProgramArgs) > 0 {
 				job.Program = job.ProgramArgs[0]
 			}
@@ -178,7 +207,74 @@ func (s *Service) ListJobs() ([]Job, error) {
 		jobs = append(jobs, job)
 	}
 
+	// Offline merge: plists present on disk but absent from launchctl list.
+	for label, sr := range plistMap {
+		if _, ok := seen[label]; ok {
+			continue
+		}
+		var lastRunAt *time.Time
+		if t := plist.LastRunAt(sr.Data.StandardOutPath, sr.Data.StandardErrorPath, s.stat()); !t.IsZero() {
+			lastRunAt = &t
+		}
+		job := Job{
+			Label:                 label,
+			PID:                   0,
+			Status:                StatusOffline,
+			PlistPath:             sr.Path,
+			Program:               sr.Data.Program,
+			ProgramArgs:           sr.Data.ProgramArguments,
+			StandardOutPath:       sr.Data.StandardOutPath,
+			StandardErrPath:       sr.Data.StandardErrorPath,
+			RunAtLoad:             sr.Data.RunAtLoad,
+			KeepAlive:             sr.Data.KeepAlive,
+			Domain:                s.detectDomain(sr.Path),
+			StartInterval:         sr.Data.StartInterval,
+			StartCalendarInterval: sr.Data.StartCalendarInterval,
+			LastRunAt:             lastRunAt,
+		}
+		if next := computeNextRun(sr.Data, lastRunAt, now); !next.IsZero() {
+			n := next
+			job.NextRunAt = &n
+		}
+		if job.Program == "" && len(job.ProgramArgs) > 0 {
+			job.Program = job.ProgramArgs[0]
+		}
+		jobs = append(jobs, job)
+	}
+
 	return jobs, nil
+}
+
+// now returns the service's clock, defaulting to time.Now for zero-value services.
+func (s *Service) now() time.Time {
+	if s.nowFn == nil {
+		return time.Now()
+	}
+	return s.nowFn()
+}
+
+// stat returns the service's stat function, defaulting to os.Stat.
+func (s *Service) stat() func(string) (os.FileInfo, error) {
+	if s.statFn == nil {
+		return os.Stat
+	}
+	return s.statFn
+}
+
+// computeNextRun picks the next fire time from StartCalendarInterval entries or
+// StartInterval, returning zero time if neither is configured.
+func computeNextRun(data plist.PlistData, lastRun *time.Time, now time.Time) time.Time {
+	if len(data.StartCalendarInterval) > 0 {
+		return plist.NextCalendarFire(data.StartCalendarInterval, now)
+	}
+	if data.StartInterval > 0 {
+		last := time.Time{}
+		if lastRun != nil {
+			last = *lastRun
+		}
+		return plist.NextIntervalFire(data.StartInterval, last, now)
+	}
+	return time.Time{}
 }
 
 // GetJob returns a single job by label. Returns an error wrapping ErrNotFound

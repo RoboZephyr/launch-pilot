@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
+
+	"github.com/A404coder/launch-pilot/internal/plist"
 )
 
 // Sentinel errors returned by Service methods.
@@ -32,34 +35,59 @@ func ValidateLabel(label string) error {
 type JobStatus string
 
 const (
-	StatusRunning JobStatus = "running" // PID > 0
-	StatusStopped JobStatus = "stopped" // PID == 0, exit == 0
-	StatusError   JobStatus = "error"   // PID == 0, exit != 0
+	StatusRunning   JobStatus = "running"
+	StatusScheduled JobStatus = "scheduled"
+	StatusCompleted JobStatus = "completed"
+	StatusStopped   JobStatus = "stopped"
+	StatusError     JobStatus = "error"
+	StatusOffline   JobStatus = "offline"
 )
 
 // Job holds merged data from launchctl list + plist file for a single launchd job.
 type Job struct {
-	Label           string    `json:"label"`
-	PID             int       `json:"pid"`
-	LastExitStatus  int       `json:"lastExitStatus"`
-	Status          JobStatus `json:"status"`
-	PlistPath       string    `json:"plistPath"`
-	Program         string    `json:"program"`
-	ProgramArgs     []string  `json:"programArgs"`
-	StandardOutPath string    `json:"standardOutPath"`
-	StandardErrPath string    `json:"standardErrPath"`
-	RunAtLoad       bool      `json:"runAtLoad"`
-	KeepAlive       bool      `json:"keepAlive"`
-	Domain          string    `json:"domain"`
+	Label                 string                `json:"label"`
+	PID                   int                   `json:"pid"`
+	LastExitStatus        int                   `json:"lastExitStatus"`
+	Status                JobStatus             `json:"status"`
+	PlistPath             string                `json:"plistPath"`
+	Program               string                `json:"program"`
+	ProgramArgs           []string              `json:"programArgs"`
+	StandardOutPath       string                `json:"standardOutPath"`
+	StandardErrPath       string                `json:"standardErrPath"`
+	RunAtLoad             bool                  `json:"runAtLoad"`
+	KeepAlive             bool                  `json:"keepAlive"`
+	Domain                string                `json:"domain"`
+	NextRunAt             *time.Time            `json:"nextRunAt,omitempty"`
+	LastRunAt             *time.Time            `json:"lastRunAt,omitempty"`
+	StartInterval         int                   `json:"startInterval,omitempty"`
+	StartCalendarInterval []plist.CalendarEntry `json:"startCalendarInterval,omitempty"`
 }
 
-// DeriveStatus determines the JobStatus from PID and last exit code.
-func DeriveStatus(pid, exitStatus int) JobStatus {
+// DefaultRecentWindow is the default --recent-window value: how long after
+// lastRunAt a scheduled job is still considered "completed".
+const DefaultRecentWindow = 10 * time.Minute
+
+// DeriveStatus determines the JobStatus for an online (launchctl-listed) job
+// from PID, exit code, plist schedule shape, last-run heuristic, and the
+// configured recent-completion window.
+//
+// Offline (plist present but not in `launchctl list`) is assigned by the
+// service during the offline merge pass, not here.
+func DeriveStatus(pid, exitStatus int, p plist.PlistData, lastRunAt *time.Time, now time.Time, window time.Duration) JobStatus {
 	if pid > 0 {
 		return StatusRunning
 	}
 	if exitStatus != 0 {
 		return StatusError
+	}
+	if lastRunAt != nil {
+		delta := now.Sub(*lastRunAt)
+		if delta >= 0 && delta <= window {
+			return StatusCompleted
+		}
+	}
+	if p.StartInterval > 0 || len(p.StartCalendarInterval) > 0 || p.RunAtLoad {
+		return StatusScheduled
 	}
 	return StatusStopped
 }

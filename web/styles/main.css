@@ -4,6 +4,9 @@
   --color-running: #22c55e;
   --color-error: #ef4444;
   --color-stopped: #9ca3af;
+  --color-scheduled: #3b82f6;
+  --color-completed: #10b981;
+  --color-offline: #9ca3af;
   --color-warning: #f59e0b;
   --color-mine: #3b82f6;
   --color-system: #9ca3af;
@@ -63,9 +66,12 @@ code, pre {
   height: 8px;
   border-radius: 50%;
 }
-.status-dot--running { background: var(--color-running); }
-.status-dot--stopped { background: var(--color-stopped); }
-.status-dot--error   { background: var(--color-error); }
+.status-dot--running   { background: var(--color-running); }
+.status-dot--stopped   { background: var(--color-stopped); }
+.status-dot--error     { background: var(--color-error); }
+.status-dot--scheduled { background: var(--color-scheduled); }
+.status-dot--completed { background: var(--color-completed); }
+.status-dot--offline   { background: var(--color-offline); }
 
 /* Severity badges */
 .severity--ok      { color: var(--color-running); }
@@ -489,11 +495,20 @@ header p {
 .status-tab--active.status-tab--running {
   border-bottom-color: var(--color-running);
 }
+.status-tab--active.status-tab--scheduled {
+  border-bottom-color: var(--color-scheduled);
+}
+.status-tab--active.status-tab--completed {
+  border-bottom-color: var(--color-completed);
+}
 .status-tab--active.status-tab--stopped {
   border-bottom-color: var(--color-stopped);
 }
 .status-tab--active.status-tab--error {
   border-bottom-color: var(--color-error);
+}
+.status-tab--active.status-tab--offline {
+  border-bottom-color: var(--color-offline);
 }
 
 /* Only Mine toggle */

@@ -10,7 +10,15 @@ import { CATEGORY_LABELS, CATEGORY_KEYS, STATUS_KEYS } from '../lib/classify.js'
 
 /** Display labels for "all" + each category/status. */
 const CATEGORY_DISPLAY = { all: 'All', ...CATEGORY_LABELS };
-const STATUS_DISPLAY = { all: 'All', running: 'Running', stopped: 'Stopped', error: 'Error' };
+export const STATUS_DISPLAY = {
+  all: 'All',
+  running: 'Running',
+  scheduled: 'Scheduled',
+  completed: 'Completed',
+  stopped: 'Stopped',
+  error: 'Error',
+  offline: 'Offline',
+};
 
 export function FilterBar() {
   const cat = categoryFilter.value;
