@@ -2,9 +2,9 @@
 
 > **产品档案**：跨 iteration 累积的产品事实记录。由 forge release 成功后自动追加，feature mode 启动时读此档案建立上下文。
 
-**Last updated**: 2026-04-18 (after v0.2.0 release)
+**Last updated**: 2026-04-19 (after v0.3.0 release)
 **Slug**: `launch-pilot`
-**Current version**: v0.2.0
+**Current version**: v0.3.0
 **Repo**: https://github.com/A404coder/launch-pilot
 
 ---

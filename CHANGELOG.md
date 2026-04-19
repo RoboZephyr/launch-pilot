@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] — 2026-04-19
+
+Status-dot fast tooltip: replaces browser UA `title` (500–1500 ms delay, unstyled) with a self-rendered, accessible overlay that shows in ≤200 ms and dismisses in ≤100 ms.
+
+### Added
+
+- **Single-instance `<StatusTooltip/>` overlay**: one fixed-position `role="tooltip"` node rendered at the `<App/>` root, driven by a single `tooltipTarget` signal (`{anchor, label} | null`) in `web/lib/state.js`. 100 rows share one overlay instead of 100 per-row instances
+- **`<StatusDot/>` focusable trigger**: replaces the inline `<span title=…>` dot with a `<button type="button" class="status-dot-trigger">` carrying the full tooltip text as `aria-label` — keyboard-reachable via Tab, screen-reader readable, Esc-dismissible
+- **Pure `buildStatusTooltipParts(job)`**: exposes the tooltip string as an ordered array so the overlay renders one line per part. Contract `buildStatusTooltip(job) === buildStatusTooltipParts(job).join(' — ')` holds — no duplicate formatting branches
+- **Pure `placeTooltip(anchor, tip, viewport)`**: viewport-aware positioning — above the anchor when space allows, flips below when top-space < 4 px, clamps horizontally into `[4, viewport.w - tip.w - 4]`
+- **Live content follow**: tooltip text re-derives from `jobs.value` on every SSE refresh (5 s cadence), so an open tooltip updates instead of showing stale data
+- **Playwright E2E bootstrap**: `@playwright/test` 1.x as devDependency, `playwright.config.mjs` with `webServer` auto-starting `launch-pilot --no-open`, and `e2e/tooltip.spec.mjs` covering the 6 spec acceptance criteria (show ≤200 ms, hide ≤100 ms, Esc, Tab focus, SSE live update, continuous hover)
+
+### Changed
+
+- Tooltip state shape collapsed from 3 signals (`tooltipAnchor`, `tooltipLabel`, `tooltipVisible`) to 1 atomic signal `tooltipTarget`. `showTooltip(anchor, label)` now short-circuits when the target is unchanged
+- `PRODUCT-STATE.md` slug/repo corrected to `launch-pilot` (matches actual GitHub remote)
+
+### Unchanged (explicit guarantees)
+
+- Go backend, SSE schema, and Job JSON fields: byte-identical
+- `buildStatusTooltip(job)` output: byte-identical
+- No new frontend runtime dependencies — `preact`, `@preact/signals`, `htm` already vendored
+
 ## [0.1.0] — 2026-04-18
 
 Initial release of Launch Pilot (formerly Launchboard).
