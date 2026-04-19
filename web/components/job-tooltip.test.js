@@ -5,8 +5,6 @@ import { html } from 'htm/preact';
 import { buildStatusTooltipParts, StatusTooltip } from './job-tooltip.js';
 import { jobs, tooltipTarget } from '../lib/state.js';
 
-// S-005: buildStatusTooltipParts 48-combo regression + 6 StatusTooltip mount cases.
-//
 // Reimplements the spec'd parts rules here so the assertion is an independent
 // oracle — never imports the SUT to compute expected output.
 const STATUSES = ['running', 'error', 'completed', 'scheduled', 'stopped', 'offline'];

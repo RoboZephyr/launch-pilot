@@ -50,17 +50,16 @@ export function hideTooltip() {
 export function StatusDot({ job }) {
   const ariaLabel = buildStatusTooltip(job);
   const dotClass = `status-dot status-dot--${job.status} status-dot-trigger`;
-  const showFromHover = (e) => showTooltip(e.currentTarget, job.label, 'hover');
-  const showFromFocus = (e) => showTooltip(e.currentTarget, job.label, 'focus');
+  const show = (via) => (e) => showTooltip(e.currentTarget, job.label, via);
   return html`
     <button
       type="button"
       class=${dotClass}
       aria-label=${ariaLabel}
       data-label=${job.label}
-      onPointerEnter=${showFromHover}
+      onPointerEnter=${show('hover')}
       onPointerLeave=${hideTooltip}
-      onFocus=${showFromFocus}
+      onFocus=${show('focus')}
       onBlur=${hideTooltip}
     ></button>
   `;
@@ -70,7 +69,6 @@ export function StatusDot({ job }) {
 export function StatusTooltip() {
   const ref = useRef(null);
 
-  // Reactive: rerun whenever tooltipTarget OR the identified job changes.
   const jobSignal = useComputed(() => {
     const t = tooltipTarget.value;
     if (!t) return null;
@@ -85,8 +83,7 @@ export function StatusTooltip() {
   useSignalEffect(() => {
     const t = tooltipTarget.value;
     if (!t) return;
-    const stillThere = jobs.value.some(j => j.label === t.label);
-    if (!stillThere || !t.anchor.isConnected) hideTooltip();
+    if (jobSignal.value === null || !t.anchor.isConnected) hideTooltip();
   });
 
   useEffect(() => {

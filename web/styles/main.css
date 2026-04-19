@@ -28,6 +28,10 @@
     --color-text: #f9fafb;
     --color-text-secondary: #9ca3af;
     --color-border: #374151;
+    /* Distinguish completed/running (both green) and stopped/offline (both gray) on dark bg */
+    --color-completed: #34d399;
+    --color-stopped: #6b7280;
+    --color-offline: #9ca3af;
   }
 }
 
@@ -73,7 +77,10 @@ code, pre {
 .status-dot--completed { background: var(--color-completed); }
 .status-dot--offline   { background: var(--color-offline); }
 
-/* Status-dot button trigger (replaces bare <span> for a11y + custom tooltip) */
+/* Status-dot button trigger (replaces bare <span> for a11y + custom tooltip).
+ * The colored 8x8 disc is drawn by ::before so that .status-dot-trigger's
+ * transparent background does not mask the .status-dot--<status> color — the
+ * ::before has its own background stack, isolated from cascade order. */
 .status-dot-trigger {
   appearance: none;
   background: transparent;
@@ -81,9 +88,28 @@ code, pre {
   padding: 0;
   margin: 0;
   cursor: help;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
   line-height: 0;
 }
+.status-dot-trigger::before {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-color, var(--color-stopped));
+  transition: background-color 80ms linear;
+}
+.status-dot-trigger.status-dot--running   { --status-color: var(--color-running); }
+.status-dot-trigger.status-dot--error     { --status-color: var(--color-error); }
+.status-dot-trigger.status-dot--completed { --status-color: var(--color-completed); }
+.status-dot-trigger.status-dot--scheduled { --status-color: var(--color-scheduled); }
+.status-dot-trigger.status-dot--stopped   { --status-color: var(--color-stopped); }
+.status-dot-trigger.status-dot--offline   { --status-color: var(--color-offline); }
 .status-dot-trigger:focus { outline: none; }
 .status-dot-trigger:focus-visible {
   outline: 2px solid var(--color-text-secondary);

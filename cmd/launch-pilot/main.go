@@ -98,23 +98,22 @@ func main() {
 
 	srv := newServer(cfg)
 
-	// Open browser unless --no-open.
-	if !cfg.NoOpen {
-		exec.Command("open", url).Start()
-	}
-
-	// Start serving in background.
 	go func() {
 		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "launch-pilot: serve: %v\n", err)
 		}
 	}()
 
-	// Wait for interrupt signal.
+	if !cfg.NoOpen {
+		if err := exec.Command("open", url).Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "launch-pilot: open browser: %v\n", err)
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	<-ctx.Done()
-	stop() // restore default signal behavior
+	stop() // restore default signal behavior so a second Ctrl-C aborts cleanly
 
 	fmt.Println("\nShutting down...")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -6,9 +6,17 @@ import { apiFetch } from '../lib/api.js';
 /** Local search filter for log content */
 const logSearch = signal('');
 
+const INITIAL_LINES = 200;
+const MAX_LINES = 10000;
+
+function countLines(text) {
+  if (!text) return 0;
+  return text.split('\n').length;
+}
+
 /**
  * Infer whether more log lines may exist server-side without a backend
- * `hasMore` field. If `requested >= 10000` we've hit the hard cap → false.
+ * `hasMore` field. If `requested >= MAX_LINES` we've hit the hard cap → false.
  * Otherwise, if either stream returned ≥ requested lines, there may be more.
  *
  * Edge case: a stream whose actual line count equals `requested` yields a
@@ -20,18 +28,11 @@ const logSearch = signal('');
  * @returns {boolean}
  */
 export function computeHasMore(logs, requested) {
-  if (requested >= 10000) return false;
+  if (requested >= MAX_LINES) return false;
   if (!logs) return false;
-  const stdoutLines = logs.stdoutAvailable && logs.stdout
-    ? logs.stdout.split('\n').length : 0;
-  const stderrLines = logs.stderrAvailable && logs.stderr
-    ? logs.stderr.split('\n').length : 0;
+  const stdoutLines = logs.stdoutAvailable ? countLines(logs.stdout) : 0;
+  const stderrLines = logs.stderrAvailable ? countLines(logs.stderr) : 0;
   return stdoutLines >= requested || stderrLines >= requested;
-}
-
-function countLines(text) {
-  if (!text) return 0;
-  return text.split('\n').length;
 }
 
 /**
@@ -65,8 +66,8 @@ export function LogViewerView({
 
   const totalLines = (logs.stdoutAvailable ? countLines(logs.stdout) : 0)
     + (logs.stderrAvailable ? countLines(logs.stderr) : 0);
-  const showLoadMore = hasMore && lines < 10000;
-  const showDone = !hasMore && lines >= 200;
+  const showLoadMore = hasMore && lines < MAX_LINES;
+  const showDone = !hasMore && lines >= INITIAL_LINES;
 
   return html`
     <div class="log-viewer">
@@ -115,7 +116,7 @@ export function LogViewer({ label }) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
-  const [lines, setLines] = useState(200);
+  const [lines, setLines] = useState(INITIAL_LINES);
   const [hasMore, setHasMore] = useState(false);
 
   const fetchLogs = (n) => {
@@ -124,21 +125,21 @@ export function LogViewer({ label }) {
 
   useEffect(() => {
     logSearch.value = '';
-    setLines(200);
+    setLines(INITIAL_LINES);
     setLoading(true);
     setError(null);
     setHasMore(false);
-    fetchLogs(200)
+    fetchLogs(INITIAL_LINES)
       .then(data => {
         setLogs(data);
-        setHasMore(computeHasMore(data, 200));
+        setHasMore(computeHasMore(data, INITIAL_LINES));
         setLoading(false);
       })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [label]);
 
   const loadMore = () => {
-    const next = Math.min(lines * 2, 10000);
+    const next = Math.min(lines * 2, MAX_LINES);
     if (next === lines) return;
     setLoadingMore(true);
     fetchLogs(next)
