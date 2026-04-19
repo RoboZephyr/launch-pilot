@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] — 2026-04-19
+
+Post-v0.3.0 UI polish: 7 P1 review fixes hitting existing seams — zero new runtime deps, zero backend schema changes.
+
+### Fixed
+
+- **US-P1 status-dot visibility**: moved the 6 status colors to a `.status-dot-trigger::before` 8×8 swatch so the button's `background: transparent` no longer overwrites the state color. Dark-mode variables retuned to keep ≥3:1 contrast across `running`/`completed`/`stopped`/`offline`
+- **US-P2 tooltip freshness**: `StatusTooltip` now derives the current job via `useComputed(() => jobs.value.find(...))` and watches label disappearance through `useSignalEffect`, so content updates on each 5 s SSE snapshot and the overlay closes immediately when the label is removed
+- **US-P3 startup banner**: `Launchboard running at …` → `Launch Pilot running at …`; banner extracted into a `printBanner(w, url)` helper with a stdout-capturing regex test (`TestStartupBanner_LaunchPilot`)
+- **US-P4 log viewer Load-more**: client-side `computeHasMore(logs, requested)` replaces the missing backend `hasMore` field — hides the button when a stream returns fewer than `requested` lines, surfaces `Showing all N lines` terminal state, respects the 10 000-line cap
+- **US-P5 tooltip perf**: opacity fade trimmed to 60 ms; Playwright `tooltip-perf-a11y.spec.mjs` asserts enter p95 ≤ 200 ms / leave p95 ≤ 100 ms over 20 cycles
+- **US-P6 Esc focus return**: Esc handling consolidated onto `StatusTooltip`; when entered via focus the anchor regains focus before hide (per WAI-ARIA APG tooltip pattern), hover-entered tooltips do not move `activeElement`
+- **US-P7 tooltip test coverage**: 48-combo table-driven test of `buildStatusTooltipParts` plus 6 `preact-render-to-string` DOM mounts; all 117 Node component tests green
+
+### Tests
+
+- 3 new Playwright specs: `visual-status-dots`, `tooltip-freshness`, `log-viewer-loadmore`, `tooltip-perf-a11y`
+- 2 new Node component tests: `job-tooltip.test.js`, `log-viewer.test.js`
+- Suite totals: 16 Playwright / 117 Node / all Go packages
+
 ## [0.3.0] — 2026-04-19
 
 Status-dot fast tooltip: replaces browser UA `title` (500–1500 ms delay, unstyled) with a self-rendered, accessible overlay that shows in ≤200 ms and dismisses in ≤100 ms.
