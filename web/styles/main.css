@@ -402,6 +402,12 @@ header p {
 .log-viewer__load-more {
   margin-top: 0.5rem;
 }
+.log-viewer__done {
+  margin-top: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+}
 
 /* Diagnose panel */
 .diagnose-panel {
