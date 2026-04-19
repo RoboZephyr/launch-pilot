@@ -108,10 +108,14 @@ code, pre {
   font-size: 0.8rem;
   line-height: 1.4;
   opacity: 0;
-  transition: opacity 80ms linear;
+  visibility: hidden;
+  transition: opacity 60ms linear, visibility 0s linear 60ms;
 }
-.status-tooltip--visible { opacity: 1; }
-.status-tooltip[aria-hidden="true"] { display: none; }
+.status-tooltip--visible {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 60ms linear, visibility 0s linear 0s;
+}
 .status-tooltip__line + .status-tooltip__line { margin-top: 0.2rem; }
 
 /* Severity badges */

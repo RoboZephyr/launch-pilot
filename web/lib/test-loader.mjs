@@ -6,7 +6,8 @@
  * Usage: node --loader ./web/lib/test-loader.mjs --test web/components/job-row.test.js
  */
 const BARE_TO_VENDOR = {
-  '@preact/signals': '../vendor/signals-core.mjs',
+  '@preact/signals': '../vendor/signals.mjs',
+  '@preact/signals-core': '../vendor/signals-core.mjs',
   'htm/preact': '../vendor/htm-preact.mjs',
   'htm': '../vendor/htm.mjs',
   'preact/hooks': '../vendor/preact-hooks.mjs',

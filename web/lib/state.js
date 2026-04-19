@@ -119,5 +119,5 @@ export function removeToast(id) {
   toasts.value = toasts.value.filter(t => t.id !== id);
 }
 
-/** @type {import('@preact/signals').Signal<{anchor: HTMLElement, label: string} | null>} */
+/** @type {import('@preact/signals').Signal<{anchor: HTMLElement, label: string, enteredVia: 'focus'|'hover'} | null>} */
 export const tooltipTarget = signal(null);

@@ -1,5 +1,6 @@
 import { html } from 'htm/preact';
 import { useRef, useLayoutEffect, useEffect } from 'preact/hooks';
+import { useComputed, useSignalEffect } from '@preact/signals';
 import { jobs, tooltipTarget } from '../lib/state.js';
 
 const STATUSES_EXPECTING_LAST_RUN = new Set(['completed', 'scheduled']);
@@ -35,10 +36,10 @@ export function placeTooltip(anchor, tip, viewport, margin = 6) {
   return { top, left };
 }
 
-export function showTooltip(anchor, label) {
+export function showTooltip(anchor, label, enteredVia = 'hover') {
   const cur = tooltipTarget.peek();
-  if (cur && cur.anchor === anchor && cur.label === label) return;
-  tooltipTarget.value = { anchor, label };
+  if (cur && cur.anchor === anchor && cur.label === label && cur.enteredVia === enteredVia) return;
+  tooltipTarget.value = { anchor, label, enteredVia };
 }
 
 export function hideTooltip() {
@@ -49,24 +50,18 @@ export function hideTooltip() {
 export function StatusDot({ job }) {
   const ariaLabel = buildStatusTooltip(job);
   const dotClass = `status-dot status-dot--${job.status} status-dot-trigger`;
-  const show = (e) => showTooltip(e.currentTarget, job.label);
-  const onKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      hideTooltip();
-      e.currentTarget.blur();
-    }
-  };
+  const showFromHover = (e) => showTooltip(e.currentTarget, job.label, 'hover');
+  const showFromFocus = (e) => showTooltip(e.currentTarget, job.label, 'focus');
   return html`
     <button
       type="button"
       class=${dotClass}
       aria-label=${ariaLabel}
       data-label=${job.label}
-      onPointerEnter=${show}
+      onPointerEnter=${showFromHover}
       onPointerLeave=${hideTooltip}
-      onFocus=${show}
+      onFocus=${showFromFocus}
       onBlur=${hideTooltip}
-      onKeyDown=${onKeyDown}
     ></button>
   `;
 }
@@ -74,19 +69,37 @@ export function StatusDot({ job }) {
 // Singleton overlay — mount once at <App> root.
 export function StatusTooltip() {
   const ref = useRef(null);
+
+  // Reactive: rerun whenever tooltipTarget OR the identified job changes.
+  const jobSignal = useComputed(() => {
+    const t = tooltipTarget.value;
+    if (!t) return null;
+    return jobs.value.find(j => j.label === t.label) ?? null;
+  });
+
   const target = tooltipTarget.value;
-  const job = target ? jobs.value.find(j => j.label === target.label) : null;
+  const job = jobSignal.value;
   const visible = target !== null && job !== null;
 
-  useEffect(() => {
-    if (!target) return;
-    if (!target.anchor.isConnected || !job) hideTooltip();
-  }, [target, job]);
+  // Close immediately if the label vanishes from the snapshot or anchor detaches.
+  useSignalEffect(() => {
+    const t = tooltipTarget.value;
+    if (!t) return;
+    const stillThere = jobs.value.some(j => j.label === t.label);
+    if (!stillThere || !t.anchor.isConnected) hideTooltip();
+  });
 
   useEffect(() => {
     if (!visible) return undefined;
     const dismiss = () => hideTooltip();
-    const onKey = (e) => { if (e.key === 'Escape') hideTooltip(); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      const t = tooltipTarget.peek();
+      if (t && t.enteredVia === 'focus' && t.anchor && t.anchor.isConnected) {
+        t.anchor.focus();
+      }
+      hideTooltip();
+    };
     window.addEventListener('scroll', dismiss, true);
     window.addEventListener('resize', dismiss);
     window.addEventListener('keydown', onKey);
