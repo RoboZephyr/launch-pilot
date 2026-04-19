@@ -1,4 +1,4 @@
-.PHONY: build test clean run
+.PHONY: build test clean run e2e
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -13,3 +13,6 @@ clean:
 
 run: build
 	./launch-pilot
+
+e2e:
+	npm run e2e
