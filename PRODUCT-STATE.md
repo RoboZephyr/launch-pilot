@@ -3,9 +3,9 @@
 > **产品档案**：跨 iteration 累积的产品事实记录。由 forge release 成功后自动追加，feature mode 启动时读此档案建立上下文。
 
 **Last updated**: 2026-04-18 (after v0.2.0 release)
-**Slug**: `macos-launchd`
+**Slug**: `launch-pilot`
 **Current version**: v0.2.0
-**Repo**: https://github.com/A404coder/macos-launchd
+**Repo**: https://github.com/A404coder/launch-pilot
 
 ---
 

@@ -6,9 +6,7 @@ import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
 import { ConfirmDialog } from './confirm-dialog.js';
 import { LogViewer } from './log-viewer.js';
 import { DiagnosePanel } from './diagnose-panel.js';
-import { buildStatusTooltip, StatusDot } from './job-tooltip.js';
-
-export { buildStatusTooltip };
+import { StatusDot } from './job-tooltip.js';
 
 /**
  * Single row in the job table with action buttons and expandable panels.

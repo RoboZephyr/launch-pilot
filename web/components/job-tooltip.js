@@ -1,25 +1,14 @@
 import { html } from 'htm/preact';
 import { useRef, useLayoutEffect, useEffect } from 'preact/hooks';
-import { jobs, tooltipAnchor, tooltipLabel, tooltipVisible } from '../lib/state.js';
+import { jobs, tooltipTarget } from '../lib/state.js';
 
 const STATUSES_EXPECTING_LAST_RUN = new Set(['completed', 'scheduled']);
 
-/**
- * Build the hover-tooltip string for a job status badge. Pure function — no
- * DOM deps so `node --test` can verify it without resolving htm/preact.
- * @param {{status: string, nextRunAt?: string, lastRunAt?: string, standardOutPath?: string, standardErrPath?: string}} job
- * @returns {string}
- */
 export function buildStatusTooltip(job) {
   return buildStatusTooltipParts(job).join(' — ');
 }
 
-/**
- * Pure: returns tooltip lines in order so renderers can format multi-line.
- * Contract: buildStatusTooltip(job) === buildStatusTooltipParts(job).join(' — ').
- * @param {object} job
- * @returns {string[]}
- */
+// Contract: buildStatusTooltip(job) === buildStatusTooltipParts(job).join(' — ').
 export function buildStatusTooltipParts(job) {
   const fmt = (iso) => new Date(iso).toLocaleString();
   const parts = [job.status];
@@ -33,16 +22,8 @@ export function buildStatusTooltipParts(job) {
   return parts;
 }
 
-/**
- * Pure: compute fixed-position top/left for tooltip given anchor + tooltip rects + viewport.
- * Preferred placement: above anchor, centered. Flips below when top-space < 4.
- * Clamps left into [4, viewport.width - tip.width - 4].
- * @param {{top:number,left:number,width:number,height:number,bottom:number,right:number}} anchor
- * @param {{width:number,height:number}} tip
- * @param {{width:number,height:number}} viewport
- * @param {number} [margin=6]
- * @returns {{top:number,left:number}}
- */
+// Above anchor, centered. Flips below when top-space < 4.
+// Clamps left into [4, viewport.width - tip.width - 4].
 export function placeTooltip(anchor, tip, viewport, margin = 6) {
   let top = anchor.top - tip.height - margin;
   if (top < 4) top = anchor.bottom + margin;
@@ -54,30 +35,21 @@ export function placeTooltip(anchor, tip, viewport, margin = 6) {
   return { top, left };
 }
 
-/** Imperative: set the tooltip target + show. */
-export function showTooltip(anchorEl, label) {
-  tooltipAnchor.value = anchorEl;
-  tooltipLabel.value = label;
-  tooltipVisible.value = true;
+export function showTooltip(anchor, label) {
+  const cur = tooltipTarget.peek();
+  if (cur && cur.anchor === anchor && cur.label === label) return;
+  tooltipTarget.value = { anchor, label };
 }
 
-/** Imperative: hide the tooltip. Anchor/label kept to avoid transient null. */
 export function hideTooltip() {
-  tooltipVisible.value = false;
+  if (tooltipTarget.peek() === null) return;
+  tooltipTarget.value = null;
 }
 
-/**
- * Status badge trigger — renders a focusable button styled as the 8x8 dot
- * and wires pointer/focus/Esc handlers to the singleton tooltip signals.
- * @param {{ job: object }} props
- */
 export function StatusDot({ job }) {
-  const label = buildStatusTooltip(job);
+  const ariaLabel = buildStatusTooltip(job);
   const dotClass = `status-dot status-dot--${job.status} status-dot-trigger`;
-  const onEnter = (e) => showTooltip(e.currentTarget, job.label);
-  const onLeave = () => hideTooltip();
-  const onFocus = (e) => showTooltip(e.currentTarget, job.label);
-  const onBlur = () => hideTooltip();
+  const show = (e) => showTooltip(e.currentTarget, job.label);
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
       hideTooltip();
@@ -88,59 +60,51 @@ export function StatusDot({ job }) {
     <button
       type="button"
       class=${dotClass}
-      aria-label=${label}
+      aria-label=${ariaLabel}
       data-label=${job.label}
-      onPointerEnter=${onEnter}
-      onPointerLeave=${onLeave}
-      onFocus=${onFocus}
-      onBlur=${onBlur}
+      onPointerEnter=${show}
+      onPointerLeave=${hideTooltip}
+      onFocus=${show}
+      onBlur=${hideTooltip}
       onKeyDown=${onKeyDown}
     ></button>
   `;
 }
 
-/** Singleton overlay — mount once at <App> root. */
+// Singleton overlay — mount once at <App> root.
 export function StatusTooltip() {
   const ref = useRef(null);
-  const visible = tooltipVisible.value;
-  const anchor = tooltipAnchor.value;
-  const label = tooltipLabel.value;
-  const job = label ? jobs.value.find(j => j.label === label) : null;
+  const target = tooltipTarget.value;
+  const job = target ? jobs.value.find(j => j.label === target.label) : null;
+  const visible = target !== null && job !== null;
 
   useEffect(() => {
-    if (visible && anchor && !anchor.isConnected) hideTooltip();
-  });
-
-  useEffect(() => {
-    if (visible && label && !job) hideTooltip();
-  });
+    if (!target) return;
+    if (!target.anchor.isConnected || !job) hideTooltip();
+  }, [target, job]);
 
   useEffect(() => {
     if (!visible) return undefined;
-    const onScrollOrResize = () => hideTooltip();
-    window.addEventListener('scroll', onScrollOrResize, true);
-    window.addEventListener('resize', onScrollOrResize);
+    const dismiss = () => hideTooltip();
+    const onKey = (e) => { if (e.key === 'Escape') hideTooltip(); };
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('scroll', onScrollOrResize, true);
-      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+      window.removeEventListener('keydown', onKey);
     };
   }, [visible]);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') hideTooltip(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [visible]);
-
   useLayoutEffect(() => {
-    if (!visible || !anchor || !ref.current) return;
-    const a = anchor.getBoundingClientRect();
+    if (!visible || !ref.current) return;
+    const a = target.anchor.getBoundingClientRect();
     const t = ref.current.getBoundingClientRect();
     const pos = placeTooltip(a, t, { width: window.innerWidth, height: window.innerHeight });
     ref.current.style.top = `${pos.top}px`;
     ref.current.style.left = `${pos.left}px`;
-  });
+  }, [target, job]);
 
   const parts = job ? buildStatusTooltipParts(job) : [];
   const cls = `status-tooltip${visible ? ' status-tooltip--visible' : ''}`;
