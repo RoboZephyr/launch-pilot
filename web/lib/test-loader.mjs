@@ -1,12 +1,22 @@
 /**
- * Node ESM loader — maps bare '@preact/signals' to vendored signals-core.mjs
- * so state.js can be tested without a browser/import-map.
+ * Node ESM loader — maps bare specifiers used by the browser import-map to
+ * the vendored ESM bundles so `node --test` can run component code without
+ * a browser or build step.
  *
- * Usage: node --loader ./web/lib/test-loader.mjs --test web/lib/state.test.js
+ * Usage: node --loader ./web/lib/test-loader.mjs --test web/components/job-row.test.js
  */
+const BARE_TO_VENDOR = {
+  '@preact/signals': '../vendor/signals-core.mjs',
+  'htm/preact': '../vendor/htm-preact.mjs',
+  'htm': '../vendor/htm.mjs',
+  'preact/hooks': '../vendor/preact-hooks.mjs',
+  'preact': '../vendor/preact.mjs',
+};
+
 export function resolve(specifier, context, nextResolve) {
-  if (specifier === '@preact/signals') {
-    const url = new URL('../vendor/signals-core.mjs', import.meta.url).href;
+  const mapped = BARE_TO_VENDOR[specifier];
+  if (mapped) {
+    const url = new URL(mapped, import.meta.url).href;
     return { url, shortCircuit: true };
   }
   return nextResolve(specifier, context);

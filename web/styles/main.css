@@ -73,6 +73,47 @@ code, pre {
 .status-dot--completed { background: var(--color-completed); }
 .status-dot--offline   { background: var(--color-offline); }
 
+/* Status-dot button trigger (replaces bare <span> for a11y + custom tooltip) */
+.status-dot-trigger {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: help;
+  display: inline-block;
+  line-height: 0;
+}
+.status-dot-trigger:focus { outline: none; }
+.status-dot-trigger:focus-visible {
+  outline: 2px solid var(--color-text-secondary);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Custom status tooltip overlay — single instance mounted at App root */
+.status-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2000;
+  pointer-events: none;
+  max-width: 320px;
+  padding: 0.4rem 0.6rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 80ms linear;
+}
+.status-tooltip--visible { opacity: 1; }
+.status-tooltip[aria-hidden="true"] { display: none; }
+.status-tooltip__line + .status-tooltip__line { margin-top: 0.2rem; }
+
 /* Severity badges */
 .severity--ok      { color: var(--color-running); }
 .severity--warning { color: var(--color-warning); }

@@ -118,3 +118,12 @@ export function addToast(message, ok) {
 export function removeToast(id) {
   toasts.value = toasts.value.filter(t => t.id !== id);
 }
+
+/** @type {import('@preact/signals').Signal<HTMLElement|null>} Element that triggers the currently visible tooltip */
+export const tooltipAnchor = signal(null);
+
+/** @type {import('@preact/signals').Signal<string|null>} Label of the job whose tooltip is visible */
+export const tooltipLabel = signal(null);
+
+/** @type {import('@preact/signals').Signal<boolean>} Whether the status tooltip is currently visible */
+export const tooltipVisible = signal(false);

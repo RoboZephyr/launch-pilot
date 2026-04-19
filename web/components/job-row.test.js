@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
-import { buildStatusTooltip } from './job-tooltip.js';
+import { buildStatusTooltip, buildStatusTooltipParts, placeTooltip } from './job-tooltip.js';
 
 /**
  * S04 — Category Badge in Job Rows
@@ -102,5 +102,73 @@ describe('buildStatusTooltip', () => {
     });
     // Three parts: status, Next run, Last run
     assert.equal(tip.split(' — ').length, 3);
+  });
+});
+
+describe('buildStatusTooltipParts parity with buildStatusTooltip', () => {
+  const cases = [
+    { name: 'running no schedule',
+      job: { status: 'running' } },
+    { name: 'error with nextRunAt',
+      job: { status: 'error', nextRunAt: '2026-04-17T09:00:00Z' } },
+    { name: 'completed with lastRunAt',
+      job: { status: 'completed', lastRunAt: '2026-04-17T08:00:00Z' } },
+    { name: 'scheduled no lastRun with log path',
+      job: { status: 'scheduled', nextRunAt: '2026-04-18T10:00:00Z',
+             standardOutPath: '/tmp/a.log' } },
+    { name: 'scheduled no lastRun no log path',
+      job: { status: 'scheduled', nextRunAt: '2026-04-18T10:00:00Z' } },
+    { name: 'completed no lastRun no log path',
+      job: { status: 'completed' } },
+    { name: 'stopped',
+      job: { status: 'stopped' } },
+    { name: 'offline with lastRunAt',
+      job: { status: 'offline', lastRunAt: '2026-04-15T08:00:00Z' } },
+  ];
+  for (const { name, job } of cases) {
+    it(`${name}: parts.join(' — ') === buildStatusTooltip`, () => {
+      assert.equal(buildStatusTooltipParts(job).join(' — '), buildStatusTooltip(job));
+    });
+    it(`${name}: parts is a non-empty array of strings`, () => {
+      const parts = buildStatusTooltipParts(job);
+      assert.ok(Array.isArray(parts));
+      assert.ok(parts.length >= 1);
+      for (const p of parts) assert.equal(typeof p, 'string');
+    });
+  }
+});
+
+describe('placeTooltip', () => {
+  const vp = { width: 1024, height: 768 };
+  it('above anchor when top-space available', () => {
+    const anchor = { top: 500, left: 500, width: 8, height: 8, bottom: 508, right: 508 };
+    const tip = { width: 200, height: 40 };
+    const pos = placeTooltip(anchor, tip, vp);
+    assert.ok(pos.top < 500); // above
+    assert.equal(pos.left, 500 + 4 - 100); // anchor center - tip width/2
+  });
+  it('flips below when top-space insufficient', () => {
+    const anchor = { top: 4, left: 500, width: 8, height: 8, bottom: 12, right: 508 };
+    const tip = { width: 200, height: 40 };
+    const pos = placeTooltip(anchor, tip, vp);
+    assert.ok(pos.top > 12); // below
+  });
+  it('clamps left edge to 4', () => {
+    const anchor = { top: 500, left: 0, width: 8, height: 8, bottom: 508, right: 8 };
+    const tip = { width: 200, height: 40 };
+    const pos = placeTooltip(anchor, tip, vp);
+    assert.equal(pos.left, 4);
+  });
+  it('clamps right edge to viewportW - tipW - 4', () => {
+    const anchor = { top: 500, left: 1020, width: 8, height: 8, bottom: 508, right: 1028 };
+    const tip = { width: 200, height: 40 };
+    const pos = placeTooltip(anchor, tip, vp);
+    assert.equal(pos.left, 1024 - 200 - 4);
+  });
+  it('centers horizontally over small anchor', () => {
+    const anchor = { top: 500, left: 500, width: 8, height: 8, bottom: 508, right: 508 };
+    const tip = { width: 100, height: 30 };
+    const pos = placeTooltip(anchor, tip, vp);
+    assert.equal(pos.left, 504 - 50);
   });
 });
