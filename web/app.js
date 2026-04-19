@@ -5,6 +5,7 @@ import { SearchBar } from './components/search-bar.js';
 import { FilterBar } from './components/filter-bar.js';
 import { JobTable } from './components/job-table.js';
 import { ToastContainer } from './components/toast.js';
+import { StatusTooltip } from './components/job-tooltip.js';
 
 function App() {
   useEffect(() => {
@@ -23,6 +24,7 @@ function App() {
       <${JobTable} />
     </main>
     <${ToastContainer} />
+    <${StatusTooltip} />
   `;
 }
 

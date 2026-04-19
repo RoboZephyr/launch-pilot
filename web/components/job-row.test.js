@@ -1,7 +1,10 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { renderToString } from 'preact-render-to-string';
+import { html } from 'htm/preact';
 import { classifyJob, CATEGORY_LABELS } from '../lib/classify.js';
 import { buildStatusTooltip, buildStatusTooltipParts, placeTooltip } from './job-tooltip.js';
+import { JobRow } from './job-row.js';
 
 /**
  * S04 — Category Badge in Job Rows
@@ -136,6 +139,74 @@ describe('buildStatusTooltipParts parity with buildStatusTooltip', () => {
       for (const p of parts) assert.equal(typeof p, 'string');
     });
   }
+});
+
+describe('StatusDot (via JobRow render)', () => {
+  const renderRow = (job) => renderToString(html`<${JobRow} job=${job} />`);
+
+  it('renders a <button> with status-dot + status-dot--<status> + status-dot-trigger classes', () => {
+    const job = { label: 'com.example.a', status: 'running', domain: 'user', pid: 123, lastExitStatus: 0 };
+    const out = renderRow(job);
+    assert.match(out, /<button[^>]*class="[^"]*\bstatus-dot\b[^"]*\bstatus-dot--running\b[^"]*\bstatus-dot-trigger\b/);
+    assert.match(out, /<button[^>]*type="button"/);
+  });
+
+  it('aria-label equals buildStatusTooltip(job) — running with no schedule', () => {
+    const job = { label: 'com.example.r', status: 'running', domain: 'user', pid: 1, lastExitStatus: 0 };
+    const expected = buildStatusTooltip(job);
+    const out = renderRow(job);
+    assert.ok(out.includes(`aria-label="${expected}"`), `render missing aria-label="${expected}":\n${out}`);
+  });
+
+  it('aria-label equals buildStatusTooltip(job) — scheduled with nextRunAt', () => {
+    const job = {
+      label: 'com.example.b', status: 'scheduled', domain: 'user',
+      pid: 0, lastExitStatus: 0, nextRunAt: '2026-04-18T10:00:00Z',
+    };
+    const expected = buildStatusTooltip(job);
+    const out = renderRow(job);
+    const escaped = expected.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    assert.ok(out.includes(`aria-label="${escaped}"`), `render missing aria-label="${escaped}":\n${out}`);
+  });
+
+  it('aria-label equals buildStatusTooltip(job) — completed with lastRunAt', () => {
+    const job = {
+      label: 'com.example.c', status: 'completed', domain: 'user',
+      pid: 0, lastExitStatus: 0, lastRunAt: '2026-04-18T09:00:00Z',
+      standardOutPath: '/tmp/c.log',
+    };
+    const expected = buildStatusTooltip(job);
+    const escaped = expected.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const out = renderRow(job);
+    assert.ok(out.includes(`aria-label="${escaped}"`), `render missing aria-label="${escaped}":\n${out}`);
+  });
+
+  it('carries data-label for E2E locators', () => {
+    const job = { label: 'com.example.d', status: 'running', domain: 'user', pid: 1, lastExitStatus: 0 };
+    const out = renderRow(job);
+    assert.match(out, /<button[^>]*data-label="com\.example\.d"/);
+  });
+
+  it('does not set tabindex="-1" (button is naturally focusable)', () => {
+    const job = { label: 'com.example.t', status: 'running', domain: 'user', pid: 1, lastExitStatus: 0 };
+    const out = renderRow(job);
+    // Look for the status-dot-trigger button and confirm no tabindex="-1" attribute on it.
+    const m = out.match(/<button[^>]*status-dot-trigger[^>]*>/);
+    assert.ok(m, `status-dot-trigger button not found in:\n${out}`);
+    assert.ok(!/tabindex="-1"/i.test(m[0]), `unexpected tabindex="-1" on trigger: ${m[0]}`);
+  });
+
+  it('status-dot button appears before Reload/Start/Stop in tab order', () => {
+    const job = { label: 'com.example.e', status: 'running', domain: 'user', pid: 1, lastExitStatus: 0 };
+    const out = renderRow(job);
+    const dotIdx = out.indexOf('status-dot-trigger');
+    const reloadIdx = out.indexOf('>Reload<');
+    const startIdx = out.indexOf('>Start<');
+    const stopIdx = out.indexOf('>Stop<');
+    assert.ok(dotIdx >= 0 && dotIdx < reloadIdx, 'dot must come before Reload');
+    assert.ok(reloadIdx < startIdx, 'Reload before Start');
+    assert.ok(startIdx < stopIdx, 'Start before Stop');
+  });
 });
 
 describe('placeTooltip', () => {

@@ -66,6 +66,39 @@ export function hideTooltip() {
   tooltipVisible.value = false;
 }
 
+/**
+ * Status badge trigger — renders a focusable button styled as the 8x8 dot
+ * and wires pointer/focus/Esc handlers to the singleton tooltip signals.
+ * @param {{ job: object }} props
+ */
+export function StatusDot({ job }) {
+  const label = buildStatusTooltip(job);
+  const dotClass = `status-dot status-dot--${job.status} status-dot-trigger`;
+  const onEnter = (e) => showTooltip(e.currentTarget, job.label);
+  const onLeave = () => hideTooltip();
+  const onFocus = (e) => showTooltip(e.currentTarget, job.label);
+  const onBlur = () => hideTooltip();
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      hideTooltip();
+      e.currentTarget.blur();
+    }
+  };
+  return html`
+    <button
+      type="button"
+      class=${dotClass}
+      aria-label=${label}
+      data-label=${job.label}
+      onPointerEnter=${onEnter}
+      onPointerLeave=${onLeave}
+      onFocus=${onFocus}
+      onBlur=${onBlur}
+      onKeyDown=${onKeyDown}
+    ></button>
+  `;
+}
+
 /** Singleton overlay — mount once at <App> root. */
 export function StatusTooltip() {
   const ref = useRef(null);

@@ -11,6 +11,7 @@ const BARE_TO_VENDOR = {
   'htm': '../vendor/htm.mjs',
   'preact/hooks': '../vendor/preact-hooks.mjs',
   'preact': '../vendor/preact.mjs',
+  'preact-render-to-string': '../vendor/preact-render-to-string.mjs',
 };
 
 export function resolve(specifier, context, nextResolve) {
