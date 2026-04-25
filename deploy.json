@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "slug": "launch-pilot",
+  "targets": [
+    {
+      "id": "web-prod",
+      "kind": "static-web",
+      "provider": "cloudflare-pages",
+      "projectName": "ib-launch-pilot-prod",
+      "root": "landing",
+      "buildCommand": "bun run build",
+      "outputDir": "out",
+      "domains": ["launch-pilot.zeropersonworks.com"],
+      "healthChecks": [
+        "https://ib-launch-pilot-prod.pages.dev/",
+        "https://launch-pilot.zeropersonworks.com/"
+      ]
+    }
+  ]
+}
