@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/**
+ * 设计 tokens 基线。gen-kit skill 可以 override 这里的 CSS vars 来实现品牌化。
+ * 覆盖方式: 在 src/kit/tokens.css 里 @layer base { :root { --color-primary: ... } }
+ */
+
+:root {
+  --background: #0a0a0f;
+  --foreground: #ededed;
+  --color-primary: #8B5CF6;
+  --color-accent: #06B6D4;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-text-muted: var(--color-text-muted);
+  --font-sans: var(--font-space-grotesk);
+  --font-mono: var(--font-dm-sans);
+
+  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+}
+
+@keyframes aurora {
+  0%, 100% { background-position: 50% 50%; filter: blur(10px); }
+  25% { background-position: 0% 50%; }
+  50% { background-position: 50% 100%; filter: blur(15px); }
+  75% { background-position: 100% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}

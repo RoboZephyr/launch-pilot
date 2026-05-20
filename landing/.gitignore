@@ -1,0 +1,22 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# runtime
+*.log
+*.pid
+.DS_Store
+.idea/
+.vscode/
+
+# env
+.env
+.env.local
+.env*.local
