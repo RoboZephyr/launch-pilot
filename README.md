@@ -54,13 +54,13 @@ Visual control console for macOS launchd services. View status, read logs, diagn
 ### Homebrew
 
 ```bash
-brew install A404coder/tap/launch-pilot
+brew install RoboZephyr/tap/launch-pilot
 ```
 
 ### Build from source
 
 ```bash
-git clone git@github.com:A404coder/launch-pilot.git
+git clone git@github.com:RoboZephyr/launch-pilot.git
 cd launch-pilot
 make build
 ```
