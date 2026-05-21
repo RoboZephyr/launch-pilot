@@ -10,29 +10,29 @@ export interface StatusDotProps extends HTMLAttributes<HTMLSpanElement> {
 
 const dotColorByStatus: Record<ServiceStatus, string> = {
   running: colors.status.running.fg,
-  idle: colors.status.idle.fg,
-  loaded: colors.status.loaded.fg,
-  warning: colors.status.warning.fg,
-  failed: colors.status.failed.fg,
-  unknown: colors.status.unknown.fg,
+  scheduled: colors.status.scheduled.fg,
+  completed: colors.status.completed.fg,
+  stopped: colors.status.stopped.fg,
+  error: colors.status.error.fg,
+  offline: colors.status.offline.fg,
 };
 
 const bgByStatus: Record<ServiceStatus, string> = {
   running: colors.status.running.bg,
-  idle: colors.status.idle.bg,
-  loaded: colors.status.loaded.bg,
-  warning: colors.status.warning.bg,
-  failed: colors.status.failed.bg,
-  unknown: colors.status.unknown.bg,
+  scheduled: colors.status.scheduled.bg,
+  completed: colors.status.completed.bg,
+  stopped: colors.status.stopped.bg,
+  error: colors.status.error.bg,
+  offline: colors.status.offline.bg,
 };
 
 const borderByStatus: Record<ServiceStatus, string> = {
   running: colors.status.running.border,
-  idle: colors.status.idle.border,
-  loaded: colors.status.loaded.border,
-  warning: colors.status.warning.border,
-  failed: colors.status.failed.border,
-  unknown: colors.status.unknown.border,
+  scheduled: colors.status.scheduled.border,
+  completed: colors.status.completed.border,
+  stopped: colors.status.stopped.border,
+  error: colors.status.error.border,
+  offline: colors.status.offline.border,
 };
 
 export function StatusDot({

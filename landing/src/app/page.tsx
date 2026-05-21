@@ -8,7 +8,7 @@ import {
   type Variants,
 } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Card, StatusDot, Terminal } from "@/kit";
+import { Badge, Card, StatusDot, Terminal } from "@/kit";
 import { colors, type ServiceStatus } from "@/kit/tokens";
 import { cn } from "@/kit/utils/cn";
 import { content } from "@/content";
@@ -180,15 +180,12 @@ function Hero() {
         className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-y-16 lg:grid-cols-12 lg:gap-x-12"
       >
         <div className="lg:col-span-7 xl:col-span-7">
-          <motion.div variants={heroItem} className="mb-10">
-            <Badge variant="brand" className="gap-2">
-              <span className="relative inline-flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22D3EE] opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#22D3EE]" />
-              </span>
-              {content.hero.kicker}
-            </Badge>
-          </motion.div>
+          <motion.p
+            variants={heroItem}
+            className="mb-10 font-mono text-[11px] uppercase tracking-[0.28em] text-white/45"
+          >
+            {content.hero.eyebrow}
+          </motion.p>
           <h1 className="max-w-[18ch] font-semibold tracking-[-0.04em] text-white">
             {content.hero.headline.map((line, i) => (
               <motion.span
@@ -197,7 +194,7 @@ function Hero() {
                 className={cn(
                   "block text-[clamp(2.75rem,7.6vw,7rem)] leading-[0.95]",
                   i === 1 && "text-white/85",
-                  i === 2 && "text-[#67E8F9] italic",
+                  i === 2 && "text-[#67E8F9]",
                 )}
               >
                 {line}
@@ -214,14 +211,21 @@ function Hero() {
             variants={heroItem}
             className="mt-12 flex flex-wrap items-center gap-x-4 gap-y-3"
           >
-            <Button size="lg" className="font-mono text-[13px]">
-              <span className="text-[#05070D]/70">$</span>
+            <a
+              href={content.hero.primaryCta.href}
+              className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#22D3EE] px-6 font-medium tracking-tight text-[#05070D] shadow-[0_0_0_1px_rgba(34,211,238,0.4),0_8px_32px_rgba(34,211,238,0.28)] transition-colors hover:bg-[#67E8F9]"
+            >
               {content.hero.primaryCta.label}
-            </Button>
-            <Button variant="ghost" size="lg">
+            </a>
+            <a
+              href={content.hero.secondaryCta.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-12 items-center gap-2 rounded-lg bg-transparent px-6 font-medium tracking-tight text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+            >
               {content.hero.secondaryCta.label}
               <span aria-hidden className="text-white/40">→</span>
-            </Button>
+            </a>
           </motion.div>
           <motion.dl
             variants={heroItem}
@@ -322,7 +326,7 @@ function LivePanel() {
               <div className="flex min-w-0 items-center gap-3">
                 <StatusDot
                   status={svc.status}
-                  pulse={!reduced && (svc.status === "running" || svc.status === "warning")}
+                  pulse={!reduced && (svc.status === "running" || svc.status === "scheduled")}
                 />
                 <span className="truncate font-mono text-[13px] text-white/85">
                   {svc.name}
@@ -445,10 +449,10 @@ function HowSection() {
       >
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-white/40">
-            How it works
+            How
           </p>
-          <h2 className="mt-6 max-w-[22ch] text-[clamp(2rem,4.2vw,3.5rem)] font-semibold leading-[1.04] tracking-[-0.03em]">
-            Three commands between you and a live daemon console.
+          <h2 className="mt-6 max-w-[24ch] text-[clamp(2rem,4.2vw,3.5rem)] font-semibold leading-[1.04] tracking-[-0.03em]">
+            Three steps from <span className="font-mono text-[#67E8F9]">brew install</span> to a live console.
           </h2>
         </div>
       </motion.div>
@@ -510,23 +514,20 @@ function StreamSection() {
           className="lg:col-span-5"
         >
           <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-white/40">
-            Live stream
+            {content.stream.eyebrow}
           </p>
           <h2 className="mt-6 text-[clamp(2rem,4.2vw,3.5rem)] font-semibold leading-[1.04] tracking-[-0.03em]">
-            Logs arrive before{" "}
-            <span className="italic text-[#A78BFA]">Console.app</span> can
-            catch up.
+            {content.stream.headline}
           </h2>
           <p className="mt-8 max-w-[46ch] text-[16px] leading-[1.7] text-white/60">
-            A single SSE channel multiplexes stdout, stderr, and launchd status
-            emissions. Server-side filtering keeps the payload small; the
-            browser renders deltas, not full frames.
+            {content.stream.body}
           </p>
           <div className="mt-10 flex flex-wrap gap-2">
-            <Badge variant="brand">Server-Sent Events</Badge>
-            <Badge variant="accent">Per-service tail</Badge>
-            <Badge>Search & filter</Badge>
-            <Badge>Ring buffer (500 lines)</Badge>
+            {content.stream.badges.map((b, i) => (
+              <Badge key={b} variant={i === 0 ? "brand" : i === 1 ? "accent" : "neutral"}>
+                {b}
+              </Badge>
+            ))}
           </div>
         </motion.div>
 
@@ -543,14 +544,14 @@ function StreamSection() {
           >
             <header className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3">
               <span className="font-mono text-[12px] text-white/65">
-                /api/events?service=*
+                {content.stream.endpoint}
               </span>
               <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[#34D399]">
                 <span className="relative inline-flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34D399] opacity-80" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#34D399]" />
                 </span>
-                streaming
+                {content.stream.endpointStatus}
               </span>
             </header>
             <div className="relative h-[440px] overflow-hidden bg-[#03040A]">
@@ -596,10 +597,9 @@ function StreamSection() {
               </motion.ul>
             </div>
             <footer className="flex items-center justify-between border-t border-white/[0.06] bg-white/[0.02] px-5 py-2.5 font-mono text-[11px] text-white/45">
-              <span>⌘K · filter</span>
-              <span>j/k · next · prev</span>
-              <span>/ · search</span>
-              <span>Esc · unpin</span>
+              <span>text/event-stream</span>
+              <span className="hidden sm:inline">auto-reconnect on disconnect</span>
+              <span>tail · 10,000 lines</span>
             </footer>
           </Card>
         </motion.div>
@@ -625,7 +625,7 @@ function FeatureSection() {
           Features
         </p>
         <h2 className="mt-6 text-[clamp(2rem,4.4vw,3.75rem)] font-semibold leading-[1.02] tracking-[-0.03em]">
-          Built the way a macOS utility should be.
+          A launchctl wrapper, not a SaaS.
         </h2>
       </motion.div>
 
@@ -708,10 +708,11 @@ function DemoSection() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <StatusDot status="running" label pulse />
-            <StatusDot status="warning" label pulse />
-            <StatusDot status="failed" label />
-            <StatusDot status="loaded" label />
-            <StatusDot status="idle" label />
+            <StatusDot status="scheduled" label />
+            <StatusDot status="completed" label />
+            <StatusDot status="stopped" label />
+            <StatusDot status="error" label />
+            <StatusDot status="offline" label />
           </div>
         </motion.div>
         <motion.div
@@ -795,7 +796,7 @@ function FaqSection() {
           FAQ
         </p>
         <h2 className="mt-6 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.04] tracking-[-0.03em]">
-          Questions a careful developer would ask.
+          Questions worth asking before brew install.
         </h2>
       </motion.div>
       <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">

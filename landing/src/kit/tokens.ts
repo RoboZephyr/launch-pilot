@@ -40,35 +40,35 @@ export const colors = {
       border: "rgba(52, 211, 153, 0.36)",
       label: "Running",
     },
-    idle: {
-      fg: "#94A3B8",
-      bg: "rgba(148, 163, 184, 0.12)",
-      border: "rgba(148, 163, 184, 0.32)",
-      label: "Idle",
-    },
-    loaded: {
+    scheduled: {
       fg: "#22D3EE",
       bg: "rgba(34, 211, 238, 0.12)",
       border: "rgba(34, 211, 238, 0.36)",
-      label: "Loaded",
+      label: "Scheduled",
     },
-    warning: {
-      fg: "#FBBF24",
-      bg: "rgba(251, 191, 36, 0.12)",
-      border: "rgba(251, 191, 36, 0.38)",
-      label: "Degraded",
+    completed: {
+      fg: "#67E8F9",
+      bg: "rgba(103, 232, 249, 0.10)",
+      border: "rgba(103, 232, 249, 0.32)",
+      label: "Completed",
     },
-    failed: {
+    stopped: {
+      fg: "#94A3B8",
+      bg: "rgba(148, 163, 184, 0.12)",
+      border: "rgba(148, 163, 184, 0.32)",
+      label: "Stopped",
+    },
+    error: {
       fg: "#F87171",
       bg: "rgba(248, 113, 113, 0.12)",
       border: "rgba(248, 113, 113, 0.40)",
-      label: "Failed",
+      label: "Error",
     },
-    unknown: {
-      fg: "#64748B",
-      bg: "rgba(100, 116, 139, 0.12)",
-      border: "rgba(100, 116, 139, 0.28)",
-      label: "Unknown",
+    offline: {
+      fg: "#FBBF24",
+      bg: "rgba(251, 191, 36, 0.12)",
+      border: "rgba(251, 191, 36, 0.38)",
+      label: "Offline",
     },
   },
 } as const;
@@ -77,11 +77,11 @@ export type ServiceStatus = keyof typeof colors.status;
 
 export const SERVICE_STATUS_KEYS: readonly ServiceStatus[] = [
   "running",
-  "idle",
-  "loaded",
-  "warning",
-  "failed",
-  "unknown",
+  "scheduled",
+  "completed",
+  "stopped",
+  "error",
+  "offline",
 ] as const;
 
 export const typography = {
