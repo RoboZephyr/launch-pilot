@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- cyan tile, matching site primary -->
+  <rect width="64" height="64" rx="12" fill="#22D3EE"/>
+  <!-- play triangle — the ▸ used as brand mark in the header -->
+  <polygon points="24,18 24,46 48,32" fill="#05070D"/>
+</svg>

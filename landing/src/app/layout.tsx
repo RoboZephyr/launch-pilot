@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import { Providers } from "@/page/providers";
+import { content } from "@/content";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -14,11 +15,11 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: {
-    template: "%s",
-    default: "Landing Page",
+  title: content.meta.title,
+  description: content.meta.description,
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
   },
-  description: "Landing page",
 };
 
 export default function RootLayout({
