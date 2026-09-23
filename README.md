@@ -165,13 +165,14 @@ launchctl CLI + plist files
 ### Prerequisites
 
 - macOS (uses `launchctl`)
-- Go 1.22+
+- Go 1.26.2+ (matches `go.mod`)
+- Node.js 22+ for frontend and browser tests
 
 ### Commands
 
 ```bash
 make build    # compile binary with version from git tag
-make test     # run Go tests (go test ./... -count=1)
+make test     # run Go tests in cmd/, internal/, and web/
 make run      # build + run
 make clean    # remove binary
 ```
@@ -181,13 +182,21 @@ make clean    # remove binary
 Frontend modules are tested with Node.js built-in test runner:
 
 ```bash
-node --test web/lib/classify.test.js
-node --loader web/lib/test-loader.mjs --test web/lib/state.test.js
-node --loader web/lib/test-loader.mjs --test web/components/filter-bar.test.js
-node --loader web/lib/test-loader.mjs --test web/components/job-row.test.js
+npm test
 ```
 
 The test loader maps bare specifiers (`@preact/signals`) to vendored ESM files for Node.js compatibility.
+
+### Browser tests
+
+```bash
+npm ci
+npx playwright install chromium
+npm run e2e
+```
+
+To use an installed Google Chrome: `PLAYWRIGHT_CHANNEL=chrome npm run e2e`.
+The suite starts an isolated server on `127.0.0.1:18080`.
 
 ### Project structure
 

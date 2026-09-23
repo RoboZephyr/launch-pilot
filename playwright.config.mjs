@@ -22,6 +22,6 @@ export default defineConfig({
     stderr: 'pipe',
   },
   projects: [
-    { name: 'chromium', use: { channel: 'chromium' } },
+    { name: 'chromium', use: { channel: process.env.PLAYWRIGHT_CHANNEL || 'chromium' } },
   ],
 });

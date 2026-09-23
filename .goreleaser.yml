@@ -4,7 +4,7 @@ project_name: launch-pilot
 
 before:
   hooks:
-    - go test ./...
+    - go test ./cmd/... ./internal/... ./web/...
 
 builds:
   - main: ./cmd/launch-pilot
@@ -34,9 +34,10 @@ changelog:
 
 brews:
   - repository:
-      owner: A404coder
+      owner: RoboZephyr
       name: homebrew-tap
-    homepage: "https://github.com/A404coder/launch-pilot"
+    directory: Formula
+    homepage: "https://github.com/RoboZephyr/launch-pilot"
     description: "Visual control console for macOS launchd services"
     license: MIT
     install: |

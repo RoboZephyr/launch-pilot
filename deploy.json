@@ -8,7 +8,7 @@
       "provider": "cloudflare-pages",
       "projectName": "ib-launch-pilot-prod",
       "root": "landing",
-      "buildCommand": "bun run build",
+      "buildCommand": "npm run build",
       "outputDir": "out",
       "domains": ["launch-pilot.zeropersonworks.com"],
       "healthChecks": [

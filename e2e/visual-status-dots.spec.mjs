@@ -1,38 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { installMockSSE, pushJobs } from './helpers/mock-sse.mjs';
 
 // US-P1: the status-dot color must be visible on the <button class="status-dot-trigger">.
 // We draw it via ::before, so we read getComputedStyle(trigger, '::before').backgroundColor
 // and compare against the CSS custom property for that status.
-
-async function installMockSSE(page) {
-  await page.addInitScript(() => {
-    const state = { listeners: new Map() };
-    class MockEventSource {
-      constructor(url) {
-        this.url = url;
-        this.readyState = 1;
-        state.listeners = new Map();
-      }
-      addEventListener(event, cb) {
-        if (!state.listeners.has(event)) state.listeners.set(event, []);
-        state.listeners.get(event).push(cb);
-      }
-      removeEventListener(event, cb) {
-        const arr = state.listeners.get(event);
-        if (!arr) return;
-        const i = arr.indexOf(cb);
-        if (i >= 0) arr.splice(i, 1);
-      }
-      close() { this.readyState = 2; }
-    }
-    window.EventSource = MockEventSource;
-    window.__pushJobs = (arr) => {
-      const ls = state.listeners.get('jobs') || [];
-      const evt = { data: JSON.stringify(arr) };
-      for (const cb of ls) cb(evt);
-    };
-  });
-}
 
 const STATUSES = ['running', 'error', 'completed', 'scheduled', 'stopped', 'offline'];
 
@@ -78,11 +49,10 @@ function contrast(fg, bg) {
 test.beforeEach(async ({ page }) => {
   await installMockSSE(page);
   await page.goto('/');
-  await page.waitForFunction(() => typeof window.__pushJobs === 'function');
 });
 
 test('US-P1: each status dot renders its CSS-var color via ::before', async ({ page }) => {
-  await page.evaluate((jobs) => window.__pushJobs(jobs), makeJobs());
+  await pushJobs(page, makeJobs());
   await page.waitForSelector('.status-dot-trigger', { state: 'attached', timeout: 5_000 });
 
   const result = await page.evaluate((statuses) => {
@@ -127,7 +97,7 @@ test('US-P1: each status dot renders its CSS-var color via ::before', async ({ p
 });
 
 test('US-P1: status-dot-trigger keeps <button> semantics + focus-visible', async ({ page }) => {
-  await page.evaluate((jobs) => window.__pushJobs(jobs), makeJobs());
+  await pushJobs(page, makeJobs());
   await page.waitForSelector('.status-dot-trigger', { state: 'attached', timeout: 5_000 });
 
   const tag = await page.evaluate(() =>
@@ -149,7 +119,7 @@ test('US-P1: status-dot-trigger keeps <button> semantics + focus-visible', async
 
 test('US-P1 dark mode: colors visible on dark bg, contrast ≥ 3:1', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.evaluate((jobs) => window.__pushJobs(jobs), makeJobs());
+  await pushJobs(page, makeJobs());
   await page.waitForSelector('.status-dot-trigger', { state: 'attached', timeout: 5_000 });
 
   const data = await page.evaluate((statuses) => {

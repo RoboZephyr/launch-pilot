@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --loader ./web/lib/test-loader.mjs --test web/lib/*.test.js web/components/*.test.js",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui"
   },

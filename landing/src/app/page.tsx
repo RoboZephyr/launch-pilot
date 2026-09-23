@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card, StatusDot } from "@/kit";
 import { colors, type ServiceStatus } from "@/kit/tokens";
@@ -68,11 +69,11 @@ function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.05] bg-[#05070D]/85 backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between px-6">
-        <a href="/" className="flex items-baseline gap-2 transition-opacity hover:opacity-80">
+        <Link href="/" className="flex items-baseline gap-2 transition-opacity hover:opacity-80">
           <span aria-hidden className="text-[14px] text-[#67E8F9]">▸</span>
           <span className="text-[14px] font-medium tracking-tight">{content.brand.name}</span>
           <span className="ml-1 font-mono text-[11px] text-white/35">{content.brand.version}</span>
-        </a>
+        </Link>
         <nav aria-label="Primary" className="hidden items-center gap-6 text-[13px] text-white/60 md:flex">
           {content.nav.map((l) => (
             <a key={l.href} href={l.href} className="transition-colors hover:text-white">
@@ -490,4 +491,3 @@ function SiteFooter() {
     </footer>
   );
 }
-

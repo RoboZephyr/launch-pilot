@@ -6,7 +6,7 @@ build:
 	go build -ldflags "-X main.Version=$(VERSION)" -o launch-pilot ./cmd/launch-pilot
 
 test:
-	go test ./... -count=1
+	go test ./cmd/... ./internal/... ./web/... -count=1
 
 clean:
 	rm -f launch-pilot

@@ -1,34 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-async function installMockSSE(page) {
-  await page.addInitScript(() => {
-    const state = { listeners: new Map() };
-    class MockEventSource {
-      constructor(url) {
-        this.url = url;
-        this.readyState = 1;
-        state.listeners = new Map();
-      }
-      addEventListener(event, cb) {
-        if (!state.listeners.has(event)) state.listeners.set(event, []);
-        state.listeners.get(event).push(cb);
-      }
-      removeEventListener(event, cb) {
-        const arr = state.listeners.get(event);
-        if (!arr) return;
-        const i = arr.indexOf(cb);
-        if (i >= 0) arr.splice(i, 1);
-      }
-      close() { this.readyState = 2; }
-    }
-    window.EventSource = MockEventSource;
-    window.__pushJobs = (arr) => {
-      const ls = state.listeners.get('jobs') || [];
-      const evt = { data: JSON.stringify(arr) };
-      for (const cb of ls) cb(evt);
-    };
-  });
-}
+import { installMockSSE, pushJobs } from './helpers/mock-sse.mjs';
 
 function makeJob(overrides = {}) {
   return {
@@ -73,7 +44,7 @@ test('US-P4 (a): fewer than requested → no Load more button, shows "Showing al
     });
   });
   await page.goto('/');
-  await page.evaluate((j) => window.__pushJobs([j]), makeJob());
+  await pushJobs(page, [makeJob()]);
   await page.waitForSelector('.job-row', { timeout: 5_000 });
 
   await page.locator('button.btn:has-text("Logs")').first().click();
@@ -103,7 +74,7 @@ test('US-P4 (b): each request returns full requested → button disappears at ca
     });
   });
   await page.goto('/');
-  await page.evaluate((j) => window.__pushJobs([j]), makeJob());
+  await pushJobs(page, [makeJob()]);
   await page.waitForSelector('.job-row', { timeout: 5_000 });
 
   await page.locator('button.btn:has-text("Logs")').first().click();

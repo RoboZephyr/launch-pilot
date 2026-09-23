@@ -5,7 +5,7 @@
 **Last updated**: 2026-04-19 (after v0.3.0 release)
 **Slug**: `launch-pilot`
 **Current version**: v0.3.0
-**Repo**: https://github.com/A404coder/launch-pilot
+**Repo**: https://github.com/RoboZephyr/launch-pilot
 
 ---
 
@@ -71,7 +71,7 @@
 | 后端 | Go（单 binary，stdlib + `howett.net/plist`；零其他第三方依赖） |
 | 前端 | Preact + Signals + HTM（ESM vendored，`go:embed` 嵌入 binary） |
 | 数据传输 | SSE（5s 轮询式 full snapshot push） |
-| 分发 | Homebrew tap（`A404coder/tap/launch-pilot`，amd64 + arm64） |
+| 分发 | Homebrew tap（`RoboZephyr/tap/launch-pilot`，amd64 + arm64） |
 | 测试 | `go test` 表驱动用例 + Playwright E2E |
 | 平台 | macOS 13+ (Ventura+) |
 
